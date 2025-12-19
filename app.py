@@ -126,15 +126,15 @@ def save_consultation():
     db.session.commit()
     return jsonify({'status': 'success'})
 
-@app.route('/create-demo-users')
-def create_demo_users():
-    if not User.query.first():
-        # Using 'pbkdf2:sha256' is default safe method if scrypt is unavailable, 
-        # but sticking to your method is fine. Ensure strict matching if specific hashing is required.
-        db.session.add(User(name="Nurse Joy", email='nurse@test.com', password_hash=generate_password_hash('nurse123'), role='nurse'))
-        db.session.add(User(name="Dr. Strange", email='doctor@test.com', password_hash=generate_password_hash('doctor123'), role='doctor'))
-        db.session.commit()
-    return "Demo users created"
+# @app.route('/create-demo-users')
+# def create_demo_users():
+#     if not User.query.first():
+#         # Using 'pbkdf2:sha256' is default safe method if scrypt is unavailable, 
+#         # but sticking to your method is fine. Ensure strict matching if specific hashing is required.
+#         db.session.add(User(name="Nurse Joy", email='nurse@test.com', password_hash=generate_password_hash('nurse123'), role='nurse'))
+#         db.session.add(User(name="Dr. Strange", email='doctor@test.com', password_hash=generate_password_hash('doctor123'), role='doctor'))
+#         db.session.commit()
+#     return "Demo users created"
 
 if __name__ == '__main__':
     with app.app_context():
@@ -146,5 +146,4 @@ if __name__ == '__main__':
             db.session.add(User(name="Dr. Strange", email='doctor@test.com', password_hash=generate_password_hash('doctor123'), role='doctor'))
             db.session.commit()
             print("Demo users created!")
-            
     app.run(debug=True)
