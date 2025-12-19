@@ -139,4 +139,12 @@ def create_demo_users():
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
+        # Check if users exist, if not, create them automatically
+        if not User.query.first():
+            print("Creating demo users...")
+            db.session.add(User(name="Nurse Joy", email='nurse@test.com', password_hash=generate_password_hash('nurse123'), role='nurse'))
+            db.session.add(User(name="Dr. Strange", email='doctor@test.com', password_hash=generate_password_hash('doctor123'), role='doctor'))
+            db.session.commit()
+            print("Demo users created!")
+            
     app.run(debug=True)
