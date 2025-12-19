@@ -7,9 +7,28 @@ import os
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
-# FIX 1: Point to the correct database location in the 'instance' folder
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///instance/medical_scribe.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# # FIX 1: Point to the correct database location in the 'instance' folder
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///instance/medical_scribe.db'
+# app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# app.permanent_session_lifetime = timedelta(minutes=15)
+# db = SQLAlchemy(app)
+
+# --- SYSTEMATIC FIX: Absolute Path & Directory Creation ---
+# 1. Get the absolute path of the directory where app.py is located
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+
+# 2. Define the path to the 'instance' folder
+INSTANCE_FOLDER = os.path.join(BASE_DIR, 'instance')
+
+# 3. Create the 'instance' folder if it doesn't exist (SQLite requires this)
+if not os.path.exists(INSTANCE_FOLDER):
+    os.makedirs(INSTANCE_FOLDER)
+
+# 4. Point to the database file using the absolute path
+# Note: On Windows, 3 slashes (sqlite:///) + absolute path works fine with SQLAlchemy
+db_path = os.path.join(INSTANCE_FOLDER, 'medical_scribe.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + db_path
+# ---------------------------------------------------------
 app.permanent_session_lifetime = timedelta(minutes=15)
 db = SQLAlchemy(app)
 
