@@ -199,7 +199,8 @@ Rest and hydration...
                 } else { 
                     alert('Draft Saved Successfully'); 
                 }
-            });
+            })
+            .catch(error => console.error('Error:', error));
         }
     </script>
 </body>
