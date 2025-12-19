@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Waiting Patients</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+
+<h1 class="text-2xl font-bold mb-4">Waiting Patients</h1>
+
+<ul>
+    {% for p in patients %}
+        <li class="bg-white p-4 mb-2 rounded shadow">
+            <strong>{{ p.name }}</strong> ({{ p.age }})<br>
+            <span class="text-sm text-gray-600">{{ p.context }}</span>
+        </li>
+    {% else %}
+        <li>No patients waiting.</li>
+    {% endfor %}
+</ul>
+
+</body>
+</html>

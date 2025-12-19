@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Nurse Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+
+<h1 class="text-2xl font-bold mb-4">Nurse Dashboard</h1>
+
+<form method="POST" class="bg-white p-4 rounded shadow mb-6">
+    <h2 class="font-semibold mb-2">Register New Patient</h2>
+
+    <input name="name" placeholder="Patient Name" required
+           class="border p-2 w-full mb-2">
+
+    <input name="age" placeholder="Age"
+           class="border p-2 w-full mb-2">
+
+    <textarea name="context" placeholder="Patient Context"
+              class="border p-2 w-full mb-2"></textarea>
+
+    <button class="bg-blue-600 text-white px-4 py-2 rounded">
+        Register Patient
+    </button>
+</form>
+
+<h2 class="font-semibold mb-2">Registered Patients</h2>
+<ul>
+    {% for p in patients %}
+        <li class="bg-white p-2 mb-2 rounded shadow">
+            {{ p.name }} ({{ p.age }}) – {{ p.status }}
+        </li>
+    {% endfor %}
+</ul>
+
+</body>
+</html>
