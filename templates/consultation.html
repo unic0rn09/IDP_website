@@ -22,14 +22,8 @@
                 <div class="font-bold text-gray-700">Medical Scribe</div>
             </div>
             <nav class="px-4 space-y-2">
-                <button class="w-full bg-blue-500 text-white py-3 rounded-lg font-medium shadow flex items-center justify-center gap-2">
-                    <i class="fas fa-plus"></i> New Session
-                </button>
-                <a href="/doctor/dashboard" class="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg mt-4">
-                    <i class="fas fa-history w-5"></i> History
-                </a>
                 <a href="/doctor/dashboard" class="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-lg">
-                    <i class="fas fa-user-injured w-5"></i> Patients
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
                 </a>
             </nav>
         </div>
@@ -48,12 +42,7 @@
 
     <main class="flex-1 flex flex-col relative">
         <header class="h-16 border-b border-gray-200 bg-white flex items-center px-8 justify-between shrink-0">
-            <div class="flex items-center gap-4">
-                <a href="/doctor/dashboard" class="text-gray-400 hover:text-gray-600">
-                    <i class="fas fa-arrow-left"></i>
-                </a>
-                <h1 class="text-xl font-bold text-gray-800">Patient Context</h1>
-            </div>
+            <h1 class="text-xl font-bold text-gray-800">Patient Context</h1>
         </header>
 
         <div class="flex-1 overflow-y-auto p-8">
@@ -67,7 +56,9 @@
                     <label class="block text-sm font-bold text-gray-700 mb-2">Patient Context</label>
                     <input value="{{ patient.context }}" readonly class="w-full border border-gray-200 rounded-lg p-4 bg-white text-gray-800 focus:outline-none">
                 </div>
-                <button onclick="startSession()" class="w-full bg-[#2a9d8f] hover:bg-[#21867a] text-white font-bold py-4 rounded-full shadow-lg text-lg transition">START</button>
+                <button onclick="startSession()" class="w-full bg-[#2a9d8f] hover:bg-[#21867a] text-white font-bold py-4 rounded-full shadow-lg text-lg transition">
+                    <i class="fas fa-microphone mr-2"></i> START RECORDING
+                </button>
             </div>
 
             <div id="view-recording" class="max-w-3xl mx-auto space-y-6 hidden">
@@ -83,12 +74,13 @@
                     </div>
 
                     <div id="waveform" class="h-16 bg-gray-50 rounded-lg flex items-center justify-center gap-1 px-4 overflow-hidden">
-                        </div>
+                    </div>
                 </div>
 
                 <div class="flex gap-4">
-                    <button onclick="togglePause()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 rounded-lg transition">Pause Transcribing</button>
-                    <button onclick="processTranscription()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 rounded-lg transition">Process Transcription</button>
+                    <button onclick="processTranscription()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 rounded-lg transition">
+                        <i class="fas fa-stop mr-2"></i> Stop & Process
+                    </button>
                 </div>
             </div>
 
@@ -96,31 +88,14 @@
                 <div class="md:w-1/3 flex flex-col gap-2">
                     <h3 class="font-bold text-lg text-gray-800">Transcription</h3>
                     <div class="flex-1 bg-white border border-gray-200 rounded-lg p-6 text-gray-600 text-sm leading-relaxed overflow-y-auto max-h-[600px]">
-                        <p class="mb-4">Patient: "Saya datang sebab saya ada fever sikit..."</p>
-                        <p>Doctor: "Okay, batuk ada phlegm tak?"</p>
+                        <p id="transcription-text" class="italic text-gray-400">Processing audio...</p>
                     </div>
                 </div>
 
                 <div class="md:w-2/3 flex flex-col gap-2">
                     <h3 class="font-bold text-lg text-gray-800">Clinical Note</h3>
                     <div class="flex-1 bg-white border border-gray-200 rounded-lg shadow-sm flex flex-col">
-                        <textarea id="soap-note" class="flex-1 p-6 border-none focus:ring-0 resize-none h-96 text-sm text-gray-700 leading-relaxed">
-Patient Information:
-Patient Name: {{ patient.name }}
-Context: {{ patient.context }}
-
-Subjective (CC):
-Patient presents with mild fever...
-
-Objective:
-Vitals stable...
-
-Assessment:
-Viral infection suspected...
-
-Plan:
-Rest and hydration...
-                        </textarea>
+                        <textarea id="soap-note" class="flex-1 p-6 border-none focus:ring-0 resize-none h-96 text-sm text-gray-700 leading-relaxed"></textarea>
                         <div class="p-4 border-t border-gray-100 flex gap-4 bg-white rounded-b-lg">
                             <button onclick="saveData('draft')" class="flex-1 border border-gray-300 text-gray-700 font-bold py-3 rounded-lg hover:bg-gray-50">Save Draft</button>
                             <button onclick="saveData('finalize')" class="flex-1 bg-[#2a9d8f] text-white font-bold py-3 rounded-lg hover:bg-[#21867a] shadow-md">Finalize & Sign</button>
@@ -133,63 +108,136 @@ Rest and hydration...
     </main>
 
     <script>
-        let seconds = 0;
+        let mediaRecorder;
+        let audioChunks = [];
         let timerInterval;
+        let seconds = 0;
         let isPaused = false;
-        
-        // Generate Waveform
+
+        // --- 1. VISUALIZATION (Waveform) ---
         const waveContainer = document.getElementById('waveform');
-        for(let i=0; i<40; i++) { 
-            const bar = document.createElement('div'); 
-            bar.className = 'waveform-bar'; 
-            waveContainer.appendChild(bar); 
+        if (waveContainer) {
+            for(let i=0; i<40; i++) { 
+                const bar = document.createElement('div'); 
+                bar.className = 'waveform-bar'; 
+                waveContainer.appendChild(bar); 
+            }
         }
 
-        function startSession() {
-            document.getElementById('view-setup').classList.add('hidden');
-            document.getElementById('view-recording').classList.remove('hidden');
-            timerInterval = setInterval(() => { 
-                if(!isPaused) { 
-                    seconds++; 
-                    const m = Math.floor(seconds/60).toString().padStart(2,'0');
-                    const s = (seconds%60).toString().padStart(2,'0');
-                    document.getElementById('timer').innerText = `${m}:${s}`; 
+        // --- 2. START RECORDING ---
+        async function startSession() {
+            try {
+                // Check if Elements Exist first (Prevents Blank Screen Death)
+                const setupView = document.getElementById('view-setup');
+                const recordingView = document.getElementById('view-recording');
+
+                if (!recordingView) {
+                    alert("Error: The 'view-recording' section is missing from the HTML. Please check the code.");
+                    return;
                 }
-            }, 1000);
+
+                // Trigger Microphone
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = event => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    sendAudioToBackend(audioBlob);
+                };
+
+                mediaRecorder.start();
+                
+                // Safe UI Switching
+                setupView.classList.add('hidden');
+                recordingView.classList.remove('hidden');
+                
+                // Start Timer
+                seconds = 0;
+                const timerEl = document.getElementById('timer');
+                if(timerEl) timerEl.innerText = "00:00";
+                
+                timerInterval = setInterval(() => { 
+                    if(!isPaused) { 
+                        seconds++; 
+                        const m = Math.floor(seconds/60).toString().padStart(2,'0');
+                        const s = (seconds%60).toString().padStart(2,'0');
+                        if(timerEl) timerEl.innerText = `${m}:${s}`; 
+                    }
+                }, 1000);
+
+            } catch (err) {
+                console.error("Error starting session:", err);
+                alert("Could not start recording. 1. Ensure you are on localhost or HTTPS. 2. Allow Microphone access.");
+            }
         }
 
+        // --- 3. PAUSE / RESUME ---
         function togglePause() {
+            if (!mediaRecorder) return;
             isPaused = !isPaused;
             const btn = document.getElementById('pauseBtn');
             const wave = document.getElementById('waveform');
             
             if(isPaused) {
+                mediaRecorder.pause();
                 btn.innerText = "RESUME";
                 btn.classList.replace('bg-[#3b82f6]', 'bg-green-500');
-                wave.classList.add('paused');
+                if(wave) wave.classList.add('paused');
             } else {
+                mediaRecorder.resume();
                 btn.innerText = "PAUSE";
                 btn.classList.replace('bg-green-500', 'bg-[#3b82f6]');
-                wave.classList.remove('paused');
+                if(wave) wave.classList.remove('paused');
             }
         }
 
+        // --- 4. STOP & PROCESS ---
         function processTranscription() {
-            clearInterval(timerInterval);
-            const btn = event.target;
-            btn.innerText = "Processing...";
-            setTimeout(() => {
-                document.getElementById('view-recording').classList.add('hidden');
-                document.getElementById('view-results').classList.remove('hidden');
-            }, 1000);
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop(); 
+                clearInterval(timerInterval);
+                const btn = event.target;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            }
         }
 
+        // --- 5. SEND TO BACKEND ---
+        function sendAudioToBackend(audioBlob) {
+            const formData = new FormData();
+            formData.append("audio_data", audioBlob, "consultation.wav");
+            formData.append("patient_id", "{{ patient.id }}");
+
+            fetch('/process_audio', {
+                method: 'POST',
+                body: formData
+            })
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('view-recording').classList.add('hidden');
+                document.getElementById('view-results').classList.remove('hidden');
+                
+                document.getElementById('transcription-text').innerText = data.transcription || "No transcription available.";
+                document.getElementById('soap-note').value = data.soap_note || "No note generated.";
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error sending audio to server.');
+            });
+        }
+
+        // --- 6. SAVE FINAL NOTE ---
         function saveData(action) {
             const note = document.getElementById('soap-note').value;
             fetch('/save_consultation', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ patient_id: {{ patient.id }}, note: note, action: action })
+                body: JSON.stringify({ patient_id: '{{ patient.id }}', note: note, action: action })
             })
             .then(r => r.json())
             .then(data => {
@@ -199,8 +247,7 @@ Rest and hydration...
                 } else { 
                     alert('Draft Saved Successfully'); 
                 }
-            })
-            .catch(error => console.error('Error:', error));
+            });
         }
     </script>
 </body>

@@ -136,6 +136,38 @@ def save_consultation():
 #         db.session.commit()
 #     return "Demo users created"
 
+
+    #real-time recording
+    @app.route('/process_audio', methods=['POST'])
+    def process_audio():
+        if 'audio_data' not in request.files:
+            return jsonify({'error': 'No audio file provided'}), 400
+    
+    audio_file = request.files['audio_data']
+    patient_id = request.form.get('patient_id')
+    
+    # Save the file (Optional: good for debugging)
+    # filename = f"consultation_{patient_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}.wav"
+    # audio_file.save(os.path.join('instance', filename))
+
+    # --- TODO: INTEGRATE AI HERE ---
+    # 1. Send audio_file to OpenAI Whisper API -> Get text
+    # 2. Send text to LLM (ChatGPT/Gemini) -> Get SOAP note
+    
+    # For now, return Dummy Data to prove connection works
+    mock_transcription = "Patient complains of headache and mild fever starting yesterday. No cough or runny nose."
+    mock_soap = f"""Patient Name: (ID {patient_id})
+    
+S: Patient reports headache and mild fever since yesterday.
+O: Patient appears flushed.
+A: Suspected viral fever.
+P: Prescribed Paracetamol 500mg. Rest advised."""
+
+    return jsonify({
+        'transcription': mock_transcription,
+        'soap_note': mock_soap
+    })
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
@@ -147,3 +179,4 @@ if __name__ == '__main__':
             db.session.commit()
             print("Demo users created!")
     app.run(debug=True)
+
