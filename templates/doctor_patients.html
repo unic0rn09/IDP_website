@@ -5,6 +5,7 @@
     <title>Doctor Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <meta http-equiv="refresh" content="30">
 </head>
 <body class="bg-gray-50 h-screen flex overflow-hidden font-sans">
 
@@ -14,78 +15,54 @@
                 <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold shadow-sm">MS</div>
                 <div class="font-bold text-gray-700 text-lg">Medical Scribe</div>
             </div>
-
-            <nav class="px-4 space-y-3">
+            <nav class="px-4 space-y-3 mt-4">
                 <button class="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg font-medium shadow-md flex items-center justify-center gap-2 transition">
                     <i class="fas fa-plus"></i> New Session
                 </button>
-
-                <div class="space-y-1 mt-4">
-                    <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 hover:text-blue-600 rounded-lg transition font-medium">
-                        <i class="fas fa-history w-5 text-center"></i> Show History
-                    </a>
-                    
-                    <a href="/doctor/dashboard" class="flex items-center gap-3 px-4 py-3 bg-blue-50 text-blue-600 rounded-lg transition font-medium shadow-sm">
-                        <i class="fas fa-user-injured w-5 text-center"></i> Patients Record
-                    </a>
-
-                    <a href="#" class="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 hover:text-blue-600 rounded-lg transition font-medium">
-                        <i class="fas fa-cog w-5 text-center"></i> Settings
-                    </a>
-                </div>
             </nav>
         </div>
-
         <div class="p-4 border-t border-gray-100">
             <div class="flex items-center gap-3 bg-gray-50 p-3 rounded-xl hover:bg-gray-100 transition cursor-pointer">
-                <div class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-sm">
-                    <i class="fas fa-user-md"></i>
-                </div>
+                <div class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-sm"><i class="fas fa-user-md"></i></div>
                 <div class="flex-1 min-w-0">
-                    <div class="text-sm font-bold text-gray-800 truncate">Dr. {{ doctor_name }}</div>
-                    <div class="text-xs text-gray-500">Medical Practitioner</div>
+                    <div class="text-sm font-bold text-gray-800">Dr. {{ doctor_name }}</div>
                 </div>
-                <a href="/logout" class="text-gray-400 hover:text-red-500" title="Logout">
-                    <i class="fas fa-sign-out-alt"></i>
-                </a>
+                <a href="/logout" class="text-gray-400 hover:text-red-500"><i class="fas fa-sign-out-alt"></i></a>
             </div>
         </div>
     </aside>
 
     <main class="flex-1 flex flex-col h-full relative overflow-hidden">
         <header class="h-16 bg-white border-b border-gray-200 flex items-center px-8 flex-shrink-0">
-            <h1 class="text-xl font-bold text-gray-800">Patient Queue</h1>
+            <h1 class="text-xl font-bold text-gray-800">Patient Queue (Visits)</h1>
         </header>
 
         <div class="flex-1 overflow-y-auto p-8">
-            <div class="max-w-4xl">
-                <div class="grid gap-4">
-                    {% for p in patients %}
-                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition flex justify-between items-center group">
-                            <div>
-                                <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
-                                    {{ p.name }} 
-                                    <span class="text-sm font-normal text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{{ p.age }} y/o</span>
-                                </h3>
-                                <p class="text-gray-600 mt-2 text-sm"><strong class="text-gray-900">Symptoms:</strong> {{ p.context }}</p>
-                                <p class="text-xs text-gray-400 mt-2 flex items-center gap-1">
-                                    <i class="far fa-clock"></i> Registered: {{ p.timestamp.strftime('%H:%M') }}
-                                </p>
+            <div class="max-w-4xl grid gap-4">
+                {% for visit in patients %}
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition flex justify-between items-center group">
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                                {{ visit.patient.name }} 
+                                <span class="text-sm font-normal text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{{ visit.patient.age }} y/o</span>
+                            </h3>
+                            <p class="text-gray-600 mt-2 text-sm"><strong class="text-gray-900">Symptoms:</strong> {{ visit.symptoms }}</p>
+                            <div class="text-xs text-gray-400 mt-2 flex gap-4">
+                                <span><i class="fas fa-id-card"></i> IC: {{ visit.patient.ic_number }}</span>
+                                <span><i class="far fa-clock"></i> {{ visit.timestamp.strftime('%H:%M') }}</span>
                             </div>
+                        </div>
 
-                            <a href="/start_consultation/{{ p.id }}" 
-                               class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg shadow-sm transition transform group-hover:translate-x-1">
-                                Start Session <i class="fas fa-arrow-right ml-2"></i>
-                            </a>
-                        </div>
-                    {% else %}
-                        <div class="text-center py-20 bg-white rounded-xl border border-dashed border-gray-300">
-                            <div class="text-gray-300 text-6xl mb-4"><i class="fas fa-clipboard-list"></i></div>
-                            <p class="text-gray-500 text-lg">No patients waiting in the queue.</p>
-                            <p class="text-sm text-gray-400">New patients registered by the nurse will appear here.</p>
-                        </div>
-                    {% endfor %}
-                </div>
+                        <a href="/start_consultation/{{ visit.id }}" 
+                           class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg shadow-sm transition transform group-hover:translate-x-1">
+                            Start Session <i class="fas fa-arrow-right ml-2"></i>
+                        </a>
+                    </div>
+                {% else %}
+                    <div class="text-center py-20 bg-white rounded-xl border border-dashed border-gray-300">
+                        <p class="text-gray-500 text-lg">No patients waiting in the queue.</p>
+                    </div>
+                {% endfor %}
             </div>
         </div>
     </main>
