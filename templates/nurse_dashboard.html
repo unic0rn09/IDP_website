@@ -17,7 +17,7 @@
             </div>
             <nav class="px-4 space-y-3 mt-4">
                 <a href="/nurse/dashboard" class="flex items-center gap-3 px-4 py-3 bg-blue-50 text-blue-600 rounded-lg font-medium shadow-sm">
-                    <i class="fas fa-clipboard-list w-5 text-center"></i> Dashboard
+                    <i class="fas fa-columns w-5 text-center"></i> Dashboard
                 </a>
             </nav>
         </div>
@@ -34,90 +34,105 @@
 
     <main class="flex-1 flex flex-col h-full relative overflow-hidden">
         <header class="h-16 bg-white border-b border-gray-200 flex items-center px-8 flex-shrink-0">
-            <h1 class="text-xl font-bold text-gray-800">Nurse Station Dashboard</h1>
+            <h1 class="text-xl font-bold text-gray-800">Patient Intake</h1>
         </header>
 
         <div class="flex-1 overflow-y-auto p-8">
-            <div class="grid grid-cols-1 xl:grid-cols-2 gap-8 max-w-6xl">
+            <div class="grid grid-cols-12 gap-8 max-w-7xl">
                 
-                <div>
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 h-full">
-                        <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2 flex items-center gap-2">
-                            <i class="fas fa-user-plus text-blue-500"></i> Patient Management
+                <div class="col-span-12 lg:col-span-7 space-y-6">
+                    
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-blue-100 relative overflow-hidden">
+                        <div class="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
+                        <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <i class="fas fa-search text-blue-500"></i> Existing Patient
                         </h2>
-
-                        <div id="step-search" class="space-y-4">
-                            <label class="block text-sm font-bold text-gray-700">Patient Identification Number (IC)</label>
-                            <div class="flex gap-2">
-                                <input id="search-ic" type="text" placeholder="e.g. 901010-10-5555" class="border border-gray-300 p-3 flex-1 rounded-lg outline-none focus:border-blue-500">
-                                <button onclick="checkPatient()" class="bg-blue-600 text-white px-6 rounded-lg font-bold hover:bg-blue-700">Search</button>
-                            </div>
+                        
+                        <div class="flex gap-2 mb-4">
+                            <input id="search-ic" type="text" placeholder="Enter IC Number..." 
+                                   class="border border-gray-300 p-3 flex-1 rounded-lg outline-none focus:border-blue-500 transition">
+                            <button onclick="searchPatient()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 rounded-lg font-bold transition">Search</button>
                         </div>
 
-                        <div id="step-register" class="hidden space-y-4 mt-4 border-t pt-4">
-                            <div class="bg-yellow-50 text-yellow-800 p-3 rounded text-sm">Patient not found. Please register.</div>
-                            <div>
-                                <label class="block text-sm font-bold text-gray-700">Full Name</label>
-                                <input id="reg-name" class="border p-3 w-full rounded-lg">
+                        <div id="existing-form" class="hidden bg-blue-50 rounded-lg p-4 border border-blue-100 animate-fade-in">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <div class="text-xs text-blue-600 font-bold uppercase tracking-wider mb-1">Patient Found</div>
+                                    <div class="flex gap-2 mb-2">
+                                        <input id="edit-name" class="font-bold text-gray-800 bg-transparent border-b border-blue-300 focus:bg-white px-1 outline-none" placeholder="Name">
+                                        <input id="edit-age" class="w-16 text-gray-600 bg-transparent border-b border-blue-300 focus:bg-white px-1 outline-none" placeholder="Age">
+                                    </div>
+                                </div>
+                                <button onclick="saveEdit()" class="text-xs bg-white border border-blue-200 text-blue-600 px-3 py-1 rounded hover:bg-blue-100">
+                                    <i class="fas fa-save mr-1"></i> Save Changes
+                                </button>
                             </div>
-                            <div>
-                                <label class="block text-sm font-bold text-gray-700">Age</label>
-                                <input id="reg-age" class="border p-3 w-full rounded-lg">
-                            </div>
-                            <button onclick="registerPatient()" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700">Register Patient Profile</button>
+                            
+                            <textarea id="visit-symptoms" rows="2" class="w-full border p-3 rounded-lg focus:border-blue-500 outline-none mb-3" placeholder="Enter Visit Symptoms / Reason..."></textarea>
+                            <button onclick="createVisit()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 shadow-sm transition">
+                                <i class="fas fa-check mr-2"></i> Check In (Add to Queue)
+                            </button>
                         </div>
-
-                        <div id="step-visit" class="hidden space-y-4 mt-4 border-t pt-4">
-                            <div class="bg-blue-50 text-blue-800 p-3 rounded text-sm flex justify-between items-center">
-                                <span>Patient Found: <strong id="found-name"></strong></span>
-                                <button onclick="resetForm()" class="text-xs underline">Change</button>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-bold text-gray-700">Current Visit Symptoms / Context</label>
-                                <textarea id="visit-symptoms" rows="3" class="border p-3 w-full rounded-lg" placeholder="Why are they here today?"></textarea>
-                            </div>
-                            <button onclick="createVisit()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700">Create Visit & Add to Queue</button>
-                        </div>
-
                     </div>
+
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-purple-100 relative overflow-hidden">
+                        <div class="absolute top-0 left-0 w-1 h-full bg-purple-500"></div>
+                        <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <i class="fas fa-user-plus text-purple-500"></i> Register New
+                        </h2>
+                        
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div class="col-span-2">
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">IC Number</label>
+                                <input id="new-ic" class="w-full border p-3 rounded-lg outline-none focus:border-purple-500 transition" placeholder="e.g. 901010-10-5555">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Full Name</label>
+                                <input id="new-name" class="w-full border p-3 rounded-lg outline-none focus:border-purple-500 transition" placeholder="Name">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Age</label>
+                                <input id="new-age" class="w-full border p-3 rounded-lg outline-none focus:border-purple-500 transition" placeholder="Age">
+                            </div>
+                        </div>
+                        <button onclick="registerNew()" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-lg shadow-sm transition">
+                            Register Profile
+                        </button>
+                    </div>
+
                 </div>
 
-                <div>
+                <div class="col-span-12 lg:col-span-5">
                     <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 h-full">
                         <div class="flex justify-between items-center mb-4 border-b pb-2">
                             <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
-                                <i class="fas fa-list-ol text-blue-500"></i> Active Queue
+                                <i class="fas fa-list-ol text-gray-400"></i> Waiting Room
                             </h2>
-                            <span class="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-full">{{ queue|length }} Active</span>
+                            <span class="bg-gray-100 text-gray-600 text-xs font-bold px-2 py-1 rounded-full">{{ queue|length }}</span>
                         </div>
                         
                         <ul class="space-y-3">
                             {% for visit in queue %}
-                                <li class="p-4 rounded-lg border border-gray-100 hover:bg-gray-50 flex justify-between items-center transition shadow-sm">
+                                <li class="p-4 rounded-lg border border-gray-100 bg-gray-50 hover:bg-white hover:shadow-md transition flex justify-between items-center group">
                                     <div>
                                         <div class="flex items-center gap-2">
                                             <span class="font-bold text-gray-800">{{ visit.patient.name }}</span> 
-                                            <span class="text-xs text-gray-500 bg-gray-200 px-1.5 rounded">IC: {{ visit.patient.ic_number }}</span>
+                                            <span class="text-xs text-gray-500 bg-white border px-1.5 rounded">{{ visit.patient.age }}</span>
                                         </div>
-                                        <p class="text-sm text-gray-600 mt-1">{{ visit.symptoms }}</p>
-                                        <div class="text-xs text-gray-400 mt-1">
-                                            <i class="far fa-clock"></i> {{ visit.timestamp.strftime('%H:%M') }}
-                                            <span class="ml-2 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase 
-                                                {% if visit.status == 'waiting' %}bg-yellow-100 text-yellow-700{% else %}bg-green-100 text-green-700{% endif %}">
-                                                {{ visit.status }}
-                                            </span>
-                                        </div>
+                                        <div class="text-xs text-gray-500 mt-1">IC: {{ visit.patient.ic_number }}</div>
+                                        <p class="text-sm text-gray-600 mt-1 italic">"{{ visit.symptoms }}"</p>
                                     </div>
-                                    <button onclick="cancelVisit({{ visit.id|tojson }})" class="text-red-400 hover:text-red-600 p-2" title="Cancel Visit">
-                                        <i class="fas fa-trash-alt"></i>
+                                    <button onclick="cancelVisit({{ visit.id }})" class="text-gray-300 hover:text-red-500 p-2 transition">
+                                        <i class="fas fa-times-circle text-lg"></i>
                                     </button>
                                 </li>
                             {% else %}
-                                <li class="text-center py-10 text-gray-400 italic">No active visits.</li>
+                                <li class="text-center py-10 text-gray-400 italic">Queue is empty.</li>
                             {% endfor %}
                         </ul>
                     </div>
                 </div>
+
             </div>
         </div>
     </main>
@@ -125,51 +140,54 @@
     <script>
         let currentIC = '';
 
-        function checkPatient() {
-            currentIC = document.getElementById('search-ic').value;
-            if(!currentIC) return alert("Please enter an IC number");
-
+        // 1. SEARCH EXISTING
+        function searchPatient() {
+            const ic = document.getElementById('search-ic').value;
+            if(!ic) return alert("Enter IC");
+            
             fetch('/nurse/search_patient', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ic_number: currentIC})
+                body: JSON.stringify({ic_number: ic})
             })
             .then(r => r.json())
             .then(data => {
                 if(data.found) {
-                    document.getElementById('step-register').classList.add('hidden');
-                    document.getElementById('step-visit').classList.remove('hidden');
-                    document.getElementById('found-name').innerText = data.name + " (" + data.age + ")";
+                    currentIC = ic;
+                    document.getElementById('existing-form').classList.remove('hidden');
+                    // Pre-fill fields for potential editing
+                    document.getElementById('edit-name').value = data.name;
+                    document.getElementById('edit-age').value = data.age;
                 } else {
-                    document.getElementById('step-visit').classList.add('hidden');
-                    document.getElementById('step-register').classList.remove('hidden');
+                    alert("Patient not found. Please use the 'Register New' section.");
+                    document.getElementById('existing-form').classList.add('hidden');
                 }
             });
         }
 
-        function registerPatient() {
-            const name = document.getElementById('reg-name').value;
-            const age = document.getElementById('reg-age').value;
-            
-            fetch('/nurse/register_patient', {
+        // 2. EDIT PATIENT INFO
+        function saveEdit() {
+            if(!currentIC) return;
+            const name = document.getElementById('edit-name').value;
+            const age = document.getElementById('edit-age').value;
+
+            fetch('/nurse/update_patient', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ic: currentIC, name: name, age: age})
             })
             .then(r => r.json())
             .then(data => {
-                if(data.success) {
-                    alert("Patient Registered! Now create a visit.");
-                    // Immediately show visit creation step
-                    document.getElementById('step-register').classList.add('hidden');
-                    document.getElementById('step-visit').classList.remove('hidden');
-                    document.getElementById('found-name').innerText = name;
-                }
+                if(data.success) alert("Patient info updated!");
             });
         }
 
+        // 3. CREATE VISIT
         function createVisit() {
+            if(!currentIC) return;
             const symptoms = document.getElementById('visit-symptoms').value;
+            if(!symptoms) return alert("Please enter symptoms");
+
             fetch('/nurse/create_visit', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -177,23 +195,45 @@
             })
             .then(r => r.json())
             .then(data => {
+                if(data.success) location.reload();
+            });
+        }
+
+        // 4. REGISTER NEW
+        function registerNew() {
+            const ic = document.getElementById('new-ic').value;
+            const name = document.getElementById('new-name').value;
+            const age = document.getElementById('new-age').value;
+
+            if(!ic || !name) return alert("Please fill in required fields");
+
+            fetch('/nurse/register_patient', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ic: ic, name: name, age: age})
+            })
+            .then(r => r.json())
+            .then(data => {
                 if(data.success) {
-                    location.reload(); // Refresh to show in queue
+                    alert("Registered Successfully! You can now check them in.");
+                    // Auto-fill the Existing Section for smooth workflow
+                    document.getElementById('search-ic').value = ic;
+                    searchPatient(); 
+                    // Clear Register Form
+                    document.getElementById('new-ic').value = '';
+                    document.getElementById('new-name').value = '';
+                    document.getElementById('new-age').value = '';
+                } else {
+                    alert(data.error);
                 }
             });
         }
 
         function cancelVisit(id) {
-            if(confirm("Are you sure you want to cancel this visit?")) {
+            if(confirm("Cancel this visit?")) {
                 fetch('/nurse/cancel_visit/' + id, {method: 'POST'})
                 .then(() => location.reload());
             }
-        }
-
-        function resetForm() {
-            document.getElementById('step-visit').classList.add('hidden');
-            document.getElementById('step-register').classList.add('hidden');
-            document.getElementById('search-ic').value = '';
         }
     </script>
 </body>

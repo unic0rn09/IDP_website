@@ -72,7 +72,19 @@ def logout():
     session.clear()
     return redirect('/login')
 
-# --- NURSE ROUTES ---
+# --- NURSE SECTION ---
+# Add this route under the Nurse section in app.py
+@app.route('/nurse/update_patient', methods=['POST'])
+def update_patient():
+    data = request.json
+    p = Patient.query.filter_by(ic_number=data['ic']).first()
+    if not p: return jsonify({'error': 'Patient not found'}), 404
+    
+    p.name = data['name']
+    p.age = data['age']
+    db.session.commit()
+    return jsonify({'success': True})
+
 @app.route('/nurse/dashboard')
 def nurse_dashboard():
     if session.get('role') != 'nurse': return redirect('/login')
@@ -118,6 +130,7 @@ def cancel_visit(visit_id):
     visit.status = 'cancelled'
     db.session.commit()
     return jsonify({'success': True})
+
 
 # --- DOCTOR ROUTES ---
 @app.route('/doctor/dashboard')
