@@ -5,7 +5,6 @@
     <title>Nurse Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <meta http-equiv="refresh" content="1000"> 
 </head>
 <body class="bg-gray-50 h-screen flex overflow-hidden font-sans">
 
@@ -54,7 +53,7 @@
                             <button onclick="searchPatient()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 rounded-lg font-bold transition">Search</button>
                         </div>
 
-                        <div id="existing-form" class="hidden bg-blue-50 rounded-lg p-4 border border-blue-100 animate-fade-in">
+                        <div id="existing-form" class="hidden bg-blue-50 rounded-lg p-4 border border-blue-100">
                             <div class="flex justify-between items-start mb-4">
                                 <div>
                                     <div class="text-xs text-blue-600 font-bold uppercase tracking-wider mb-1">Patient Found</div>
@@ -64,14 +63,21 @@
                                     </div>
                                 </div>
                                 <button onclick="saveEdit()" class="text-xs bg-white border border-blue-200 text-blue-600 px-3 py-1 rounded hover:bg-blue-100">
-                                    <i class="fas fa-save mr-1"></i> Save Changes
+                                    <i class="fas fa-save mr-1"></i> Quick Save
                                 </button>
                             </div>
                             
                             <textarea id="visit-symptoms" rows="2" class="w-full border p-3 rounded-lg focus:border-blue-500 outline-none mb-3" placeholder="Enter Visit Symptoms / Reason..."></textarea>
-                            <button onclick="createVisit()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 shadow-sm transition">
-                                <i class="fas fa-check mr-2"></i> Check In (Add to Queue)
-                            </button>
+                            
+                            <div class="flex gap-3">
+                                <button onclick="viewPatientPage()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 rounded-lg shadow-sm transition">
+                                    <i class="fas fa-id-badge mr-2"></i> View Profile
+                                </button>
+                                
+                                <button onclick="createVisit()" class="flex-[2] bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 shadow-sm transition">
+                                    <i class="fas fa-check mr-2"></i> Check In (Add to Queue)
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -108,7 +114,10 @@
                             <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
                                 <i class="fas fa-list-ol text-gray-400"></i> Waiting Room
                             </h2>
-                            <span class="bg-gray-100 text-gray-600 text-xs font-bold px-2 py-1 rounded-full">{{ queue|length }}</span>
+                            <div class="flex items-center gap-2">
+                                <span class="bg-gray-100 text-gray-600 text-xs font-bold px-2 py-1 rounded-full">{{ queue|length }}</span>
+                                <button onclick="location.reload()" class="text-blue-500 hover:text-blue-700 text-sm" title="Refresh Queue"><i class="fas fa-sync"></i></button>
+                            </div>
                         </div>
                         
                         <ul class="space-y-3">
@@ -140,7 +149,6 @@
     <script>
         let currentIC = '';
 
-        // 1. SEARCH EXISTING
         function searchPatient() {
             const ic = document.getElementById('search-ic').value;
             if(!ic) return alert("Enter IC");
@@ -155,7 +163,6 @@
                 if(data.found) {
                     currentIC = ic;
                     document.getElementById('existing-form').classList.remove('hidden');
-                    // Pre-fill fields for potential editing
                     document.getElementById('edit-name').value = data.name;
                     document.getElementById('edit-age').value = data.age;
                 } else {
@@ -165,7 +172,12 @@
             });
         }
 
-        // 2. EDIT PATIENT INFO
+        // New Function: Redirect to View Page
+        function viewPatientPage() {
+            if(!currentIC) return;
+            window.location.href = `/nurse/view_patient/${currentIC}`;
+        }
+
         function saveEdit() {
             if(!currentIC) return;
             const name = document.getElementById('edit-name').value;
@@ -182,7 +194,6 @@
             });
         }
 
-        // 3. CREATE VISIT
         function createVisit() {
             if(!currentIC) return;
             const symptoms = document.getElementById('visit-symptoms').value;
@@ -199,7 +210,6 @@
             });
         }
 
-        // 4. REGISTER NEW
         function registerNew() {
             const ic = document.getElementById('new-ic').value;
             const name = document.getElementById('new-name').value;
@@ -215,11 +225,9 @@
             .then(r => r.json())
             .then(data => {
                 if(data.success) {
-                    alert("Registered Successfully! You can now check them in.");
-                    // Auto-fill the Existing Section for smooth workflow
+                    alert("Registered Successfully!");
                     document.getElementById('search-ic').value = ic;
                     searchPatient(); 
-                    // Clear Register Form
                     document.getElementById('new-ic').value = '';
                     document.getElementById('new-name').value = '';
                     document.getElementById('new-age').value = '';

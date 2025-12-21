@@ -124,6 +124,32 @@ def cancel_visit(visit_id):
     db.session.commit()
     return jsonify({'success': True})
 
+# --- FOR NURSE VIEW/DELETE ---
+@app.route('/nurse/view_patient/<ic>')
+def view_patient_page(ic):
+    if session.get('role') != 'nurse': return redirect('/login')
+    p = Patient.query.filter_by(ic_number=ic).first_or_404()
+    return render_template('nurse_patient_view.html', patient=p)
+
+@app.route('/nurse/delete_patient', methods=['POST'])
+def delete_patient():
+    data = request.json
+    p = Patient.query.filter_by(ic_number=data['ic']).first()
+    
+    if not p:
+        return jsonify({'error': 'Patient not found'}), 404
+    
+    # 1. Manually delete all visits first (to ensure clean cascade)
+    Visit.query.filter_by(patient_id=p.id).delete()
+    
+    # 2. Delete the patient
+    db.session.delete(p)
+    db.session.commit()
+    
+    return jsonify({'success': True})
+
+
+
 
 # --- DOCTOR ROUTES ---
 @app.route('/doctor/dashboard')
@@ -189,7 +215,7 @@ def process_audio():
     save_path = os.path.join(INSTANCE_FOLDER, filename)
     audio_file.save(save_path)
 
-    # Mock AI (Replace with real OpenAI call if needed)
+   ##### # Mock AI (Replace with real OpenAI call if needed)
     text = "Patient complains of persistent cough and headache for 3 days."
     soap = f"S: Cough, Headache (3 days)\nO: N/A\nA: Viral URI\nP: Symptomatic relief"
     
@@ -199,7 +225,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
         if not User.query.first():
-            db.session.add(User(name="Nurse Joy", email='nurse@test.com', password_hash=generate_password_hash('nurse123'), role='nurse'))
-            db.session.add(User(name="Dr. Strange", email='doctor@test.com', password_hash=generate_password_hash('doctor123'), role='doctor'))
+            db.session.add(User(name="Bambee", email='nurse@test.com', password_hash=generate_password_hash('nurse123'), role='nurse'))
+            db.session.add(User(name="Bambi", email='doctor@test.com', password_hash=generate_password_hash('doctor123'), role='doctor'))
             db.session.commit()
     app.run(debug=True)
