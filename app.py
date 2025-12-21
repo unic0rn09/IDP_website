@@ -3,34 +3,23 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import timedelta, datetime
 import os
+try:
+    from openai import OpenAI
+except ImportError:
+    OpenAI = None
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
-# # FIX 1: Point to the correct database location in the 'instance' folder
-# app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///instance/medical_scribe.db'
-# app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-# app.permanent_session_lifetime = timedelta(minutes=15)
-# db = SQLAlchemy(app)
-
-
-
 # --- SYSTEMATIC FIX: Absolute Path & Directory Creation ---
-# 1. Get the absolute path of the directory where app.py is located
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-
-# 2. Define the path to the 'instance' folder
 INSTANCE_FOLDER = os.path.join(BASE_DIR, 'instance')
-
-# 3. Create the 'instance' folder if it doesn't exist (SQLite requires this)
 if not os.path.exists(INSTANCE_FOLDER):
     os.makedirs(INSTANCE_FOLDER)
 
-# 4. Point to the database file using the absolute path
-# Note: On Windows, 3 slashes (sqlite:///) + absolute path works fine with SQLAlchemy
 db_path = os.path.join(INSTANCE_FOLDER, 'medical_scribe.db')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + db_path
-# ---------------------------------------------------------
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.permanent_session_lifetime = timedelta(minutes=15)
 db = SQLAlchemy(app)
 
@@ -44,23 +33,19 @@ class User(db.Model):
 
 class Patient(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    ic_number = db.Column(db.String(20), unique=True, nullable=False) # Unique ID
     name = db.Column(db.String(100), nullable=False)
-    age = db.Column(db.String(10))
-    context = db.Column(db.Text)
-    status = db.Column(db.String(20), default='waiting')
-    # FIX 2: Added timestamp field so the dashboard doesn't crash
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    consultations = db.relationship('Consultation', backref='patient', lazy=True)
+    age = db.Column(db.String(10), nullable=False)
+    visits = db.relationship('Visit', backref='patient', lazy=True)
 
-class Consultation(db.Model):
+class Visit(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'), nullable=False)
-    doctor_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    audio_filename = db.Column(db.String(200))
-    transcription_text = db.Column(db.Text)
-    soap_note = db.Column(db.Text)
-    status = db.Column(db.String(20), default='draft')
+    doctor_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True) # Assigned when doctor starts
+    timestamp = db.Column(db.DateTime, default=datetime.now)
+    symptoms = db.Column(db.Text, nullable=False) # Context/Symptoms
+    soap_note = db.Column(db.Text) # Clinical Note
+    status = db.Column(db.String(20), default='waiting') # waiting, in_consultation, completed, cancelled
 
 # --- ROUTES ---
 @app.route('/')
@@ -87,97 +72,129 @@ def logout():
     session.clear()
     return redirect('/login')
 
-@app.route('/nurse/dashboard', methods=['GET', 'POST'])
+# --- NURSE ROUTES ---
+@app.route('/nurse/dashboard')
 def nurse_dashboard():
     if session.get('role') != 'nurse': return redirect('/login')
-    if request.method == 'POST':
-        # timestamp is automatically added by the default=datetime.utcnow in the Model
-        db.session.add(Patient(name=request.form['name'], age=request.form['age'], context=request.form['context']))
-        db.session.commit()
-        return redirect('/nurse/dashboard')
-    return render_template('nurse_dashboard.html', patients=Patient.query.filter_by(status='waiting').all())
+    # Show active visits (waiting or in_consultation)
+    queue = Visit.query.filter(Visit.status.in_(['waiting', 'in_consultation'])).order_by(Visit.timestamp.asc()).all()
+    return render_template('nurse_dashboard.html', queue=queue)
 
+@app.route('/nurse/search_patient', methods=['POST'])
+def search_patient():
+    ic = request.json.get('ic_number')
+    patient = Patient.query.filter_by(ic_number=ic).first()
+    if patient:
+        return jsonify({'found': True, 'id': patient.id, 'name': patient.name, 'age': patient.age})
+    return jsonify({'found': False})
+
+@app.route('/nurse/register_patient', methods=['POST'])
+def register_patient():
+    data = request.json
+    if Patient.query.filter_by(ic_number=data['ic']).first():
+        return jsonify({'error': 'Patient already exists'}), 400
+    
+    new_p = Patient(ic_number=data['ic'], name=data['name'], age=data['age'])
+    db.session.add(new_p)
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Patient registered successfully'})
+
+@app.route('/nurse/create_visit', methods=['POST'])
+def create_visit():
+    data = request.json
+    # Patient must exist by now
+    p = Patient.query.filter_by(ic_number=data['ic']).first()
+    if not p: return jsonify({'error': 'Patient not found'}), 404
+
+    # Create new visit
+    visit = Visit(patient_id=p.id, symptoms=data['symptoms'], status='waiting')
+    db.session.add(visit)
+    db.session.commit()
+    return jsonify({'success': True})
+
+@app.route('/nurse/cancel_visit/<int:visit_id>', methods=['POST'])
+def cancel_visit(visit_id):
+    visit = Visit.query.get_or_404(visit_id)
+    visit.status = 'cancelled'
+    db.session.commit()
+    return jsonify({'success': True})
+
+# --- DOCTOR ROUTES ---
 @app.route('/doctor/dashboard')
 def doctor_dashboard():
     if session.get('role') != 'doctor': return redirect('/login')
-    return render_template('doctor_patients.html', patients=Patient.query.filter_by(status='waiting').all(), doctor_name=session['name'])
+    # Only show 'waiting' patients for the doctor
+    queue = Visit.query.filter_by(status='waiting').order_by(Visit.timestamp.asc()).all()
+    return render_template('doctor_patients.html', patients=queue, doctor_name=session['name'])
 
-@app.route('/start_consultation/<int:patient_id>')
-def start_consultation(patient_id):
+@app.route('/start_consultation/<int:visit_id>')
+def start_consultation(visit_id):
     if session.get('role') != 'doctor': return redirect('/login')
-    patient = Patient.query.get_or_404(patient_id)
-    if patient.status == 'waiting':
-        patient.status = 'in_consultation'
+    visit = Visit.query.get_or_404(visit_id)
+    
+    # Update status and doctor assignment
+    if visit.status == 'waiting':
+        visit.status = 'in_consultation'
+        visit.doctor_id = session['user_id']
         db.session.commit()
-    return render_template('consultation.html', patient=patient, doctor_name=session['name'])
+        
+    return render_template('consultation.html', visit=visit, patient=visit.patient, doctor_name=session['name'])
 
 @app.route('/save_consultation', methods=['POST'])
 def save_consultation():
     data = request.json
-    consultation = Consultation(
-        patient_id=data.get('patient_id'),
-        doctor_id=session['user_id'],
-        soap_note=data.get('note'),
-        status='finalized' if data.get('action') == 'finalize' else 'draft'
-    )
-    db.session.add(consultation)
+    visit = Visit.query.get(data.get('visit_id'))
+    if not visit: return jsonify({'error': 'Visit not found'}), 404
+
+    visit.soap_note = data.get('note')
     if data.get('action') == 'finalize':
-        p = Patient.query.get(data.get('patient_id'))
-        if p:
-            p.status = 'completed'
+        visit.status = 'completed'
+    
     db.session.commit()
     return jsonify({'status': 'success'})
 
-# @app.route('/create-demo-users')
-# def create_demo_users():
-#     if not User.query.first():
-#         # Using 'pbkdf2:sha256' is default safe method if scrypt is unavailable, 
-#         # but sticking to your method is fine. Ensure strict matching if specific hashing is required.
-#         db.session.add(User(name="Nurse Joy", email='nurse@test.com', password_hash=generate_password_hash('nurse123'), role='nurse'))
-#         db.session.add(User(name="Dr. Strange", email='doctor@test.com', password_hash=generate_password_hash('doctor123'), role='doctor'))
-#         db.session.commit()
-#     return "Demo users created"
-# Real-time recording route
-# (Make sure this touches the left margin, no spaces before @)
+@app.route('/patient/history/<ic>')
+def get_patient_history(ic):
+    p = Patient.query.filter_by(ic_number=ic).first()
+    if not p: return jsonify([])
+    
+    history = []
+    # Show all past visits (completed, cancelled, etc)
+    for v in p.visits:
+        history.append({
+            'date': v.timestamp.strftime('%Y-%m-%d %H:%M'),
+            'symptoms': v.symptoms,
+            'status': v.status,
+            'note': v.soap_note or "No notes"
+        })
+    # Sort by newest first
+    history.reverse()
+    return jsonify(history)
+
+# --- AUDIO & AI ---
 @app.route('/process_audio', methods=['POST'])
 def process_audio():
     if 'audio_data' not in request.files:
-        return jsonify({'error': 'No audio file provided'}), 400
+        return jsonify({'error': 'No audio file'}), 400
     
     audio_file = request.files['audio_data']
-    patient_id = request.form.get('patient_id')
+    visit_id = request.form.get('visit_id') # Changed from patient_id to visit_id
     
-    # Save the file (Optional: good for debugging)
-    # filename = f"consultation_{patient_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}.wav"
-    # audio_file.save(os.path.join(INSTANCE_FOLDER, filename))
+    filename = f"visit_{visit_id}.wav"
+    save_path = os.path.join(INSTANCE_FOLDER, filename)
+    audio_file.save(save_path)
 
-    # --- TODO: INTEGRATE AI HERE ---
-    # 1. Send audio_file to OpenAI Whisper API -> Get text
-    # 2. Send text to LLM (ChatGPT/Gemini) -> Get SOAP note
+    # Mock AI for demo (Replace with real OpenAI call if key available)
+    text = "Patient complains of persistent cough and headache for 3 days."
+    soap = f"S: Cough, Headache (3 days)\nO: N/A\nA: Viral URI\nP: Symptomatic relief"
     
-    # For now, return Dummy Data to prove connection works
-    mock_transcription = "Patient complains of headache and mild fever starting yesterday. No cough or runny nose."
-    mock_soap = f"""Patient Name: (ID {patient_id})
-    
-S: Patient reports headache and mild fever since yesterday.
-O: Patient appears flushed.
-A: Suspected viral fever.
-P: Prescribed Paracetamol 500mg. Rest advised."""
-
-    return jsonify({
-        'transcription': mock_transcription,
-        'soap_note': mock_soap
-    })
+    return jsonify({'transcription': text, 'soap_note': soap})
 
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-        # Check if users exist, if not, create them automatically
         if not User.query.first():
-            print("Creating demo users...")
             db.session.add(User(name="Nurse Joy", email='nurse@test.com', password_hash=generate_password_hash('nurse123'), role='nurse'))
             db.session.add(User(name="Dr. Strange", email='doctor@test.com', password_hash=generate_password_hash('doctor123'), role='doctor'))
             db.session.commit()
-            print("Demo users created!")
     app.run(debug=True)
-
