@@ -33,7 +33,7 @@ class User(db.Model):
 
 class Patient(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    ic_number = db.Column(db.String(20), unique=True, nullable=False) # Unique ID
+    ic_number = db.Column(db.String(20), unique=True, nullable=False)
     name = db.Column(db.String(100), nullable=False)
     age = db.Column(db.String(10), nullable=False)
     visits = db.relationship('Visit', backref='patient', lazy=True)
@@ -41,11 +41,11 @@ class Patient(db.Model):
 class Visit(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'), nullable=False)
-    doctor_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True) # Assigned when doctor starts
+    doctor_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     timestamp = db.Column(db.DateTime, default=datetime.now)
-    symptoms = db.Column(db.Text, nullable=False) # Context/Symptoms
-    soap_note = db.Column(db.Text) # Clinical Note
-    status = db.Column(db.String(20), default='waiting') # waiting, in_consultation, completed, cancelled
+    symptoms = db.Column(db.Text, nullable=False)
+    soap_note = db.Column(db.Text)
+    status = db.Column(db.String(20), default='waiting')
 
 # --- ROUTES ---
 @app.route('/')
@@ -72,14 +72,12 @@ def logout():
     session.clear()
     return redirect('/login')
 
-# --- NURSE SECTION ---
-# Add this route under the Nurse section in app.py
+# --- NURSE ROUTES ---
 @app.route('/nurse/update_patient', methods=['POST'])
 def update_patient():
     data = request.json
     p = Patient.query.filter_by(ic_number=data['ic']).first()
     if not p: return jsonify({'error': 'Patient not found'}), 404
-    
     p.name = data['name']
     p.age = data['age']
     db.session.commit()
@@ -88,7 +86,6 @@ def update_patient():
 @app.route('/nurse/dashboard')
 def nurse_dashboard():
     if session.get('role') != 'nurse': return redirect('/login')
-    # Show active visits (waiting or in_consultation)
     queue = Visit.query.filter(Visit.status.in_(['waiting', 'in_consultation'])).order_by(Visit.timestamp.asc()).all()
     return render_template('nurse_dashboard.html', queue=queue)
 
@@ -105,20 +102,16 @@ def register_patient():
     data = request.json
     if Patient.query.filter_by(ic_number=data['ic']).first():
         return jsonify({'error': 'Patient already exists'}), 400
-    
     new_p = Patient(ic_number=data['ic'], name=data['name'], age=data['age'])
     db.session.add(new_p)
     db.session.commit()
-    return jsonify({'success': True, 'message': 'Patient registered successfully'})
+    return jsonify({'success': True})
 
 @app.route('/nurse/create_visit', methods=['POST'])
 def create_visit():
     data = request.json
-    # Patient must exist by now
     p = Patient.query.filter_by(ic_number=data['ic']).first()
     if not p: return jsonify({'error': 'Patient not found'}), 404
-
-    # Create new visit
     visit = Visit(patient_id=p.id, symptoms=data['symptoms'], status='waiting')
     db.session.add(visit)
     db.session.commit()
@@ -136,21 +129,23 @@ def cancel_visit(visit_id):
 @app.route('/doctor/dashboard')
 def doctor_dashboard():
     if session.get('role') != 'doctor': return redirect('/login')
-    # Only show 'waiting' patients for the doctor
     queue = Visit.query.filter_by(status='waiting').order_by(Visit.timestamp.asc()).all()
     return render_template('doctor_patients.html', patients=queue, doctor_name=session['name'])
+
+# NEW ROUTE: Dedicated History Page
+@app.route('/doctor/history')
+def doctor_history_page():
+    if session.get('role') != 'doctor': return redirect('/login')
+    return render_template('doctor_history.html', doctor_name=session['name'])
 
 @app.route('/start_consultation/<int:visit_id>')
 def start_consultation(visit_id):
     if session.get('role') != 'doctor': return redirect('/login')
     visit = Visit.query.get_or_404(visit_id)
-    
-    # Update status and doctor assignment
     if visit.status == 'waiting':
         visit.status = 'in_consultation'
         visit.doctor_id = session['user_id']
         db.session.commit()
-        
     return render_template('consultation.html', visit=visit, patient=visit.patient, doctor_name=session['name'])
 
 @app.route('/save_consultation', methods=['POST'])
@@ -158,11 +153,9 @@ def save_consultation():
     data = request.json
     visit = Visit.query.get(data.get('visit_id'))
     if not visit: return jsonify({'error': 'Visit not found'}), 404
-
     visit.soap_note = data.get('note')
     if data.get('action') == 'finalize':
         visit.status = 'completed'
-    
     db.session.commit()
     return jsonify({'status': 'success'})
 
@@ -170,9 +163,7 @@ def save_consultation():
 def get_patient_history(ic):
     p = Patient.query.filter_by(ic_number=ic).first()
     if not p: return jsonify([])
-    
     history = []
-    # Show all past visits (completed, cancelled, etc)
     for v in p.visits:
         history.append({
             'date': v.timestamp.strftime('%Y-%m-%d %H:%M'),
@@ -180,9 +171,10 @@ def get_patient_history(ic):
             'status': v.status,
             'note': v.soap_note or "No notes"
         })
-    # Sort by newest first
     history.reverse()
     return jsonify(history)
+
+
 
 # --- AUDIO & AI ---
 @app.route('/process_audio', methods=['POST'])
@@ -191,13 +183,13 @@ def process_audio():
         return jsonify({'error': 'No audio file'}), 400
     
     audio_file = request.files['audio_data']
-    visit_id = request.form.get('visit_id') # Changed from patient_id to visit_id
+    visit_id = request.form.get('visit_id')
     
     filename = f"visit_{visit_id}.wav"
     save_path = os.path.join(INSTANCE_FOLDER, filename)
     audio_file.save(save_path)
 
-    # Mock AI for demo (Replace with real OpenAI call if key available)
+    # Mock AI (Replace with real OpenAI call if needed)
     text = "Patient complains of persistent cough and headache for 3 days."
     soap = f"S: Cough, Headache (3 days)\nO: N/A\nA: Viral URI\nP: Symptomatic relief"
     

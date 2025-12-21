@@ -15,12 +15,20 @@
                 <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold shadow-sm">MS</div>
                 <div class="font-bold text-gray-700 text-lg">Medical Scribe</div>
             </div>
-            <nav class="px-4 space-y-3 mt-4">
-                <button class="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg font-medium shadow-md flex items-center justify-center gap-2 transition">
-                    <i class="fas fa-plus"></i> New Session
-                </button>
+            
+            <nav class="px-4 space-y-2 mt-4">
+                <div class="px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">Menu</div>
+                
+                <a href="/doctor/dashboard" class="flex items-center gap-3 px-4 py-3 bg-blue-50 text-blue-600 rounded-lg font-medium shadow-sm">
+                    <i class="fas fa-user-clock w-5 text-center"></i> Patient Queue
+                </a>
+
+                <a href="/doctor/history" class="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 hover:text-blue-600 rounded-lg font-medium transition">
+                    <i class="fas fa-history w-5 text-center"></i> Patient History
+                </a>
             </nav>
         </div>
+
         <div class="p-4 border-t border-gray-100">
             <div class="flex items-center gap-3 bg-gray-50 p-3 rounded-xl hover:bg-gray-100 transition cursor-pointer">
                 <div class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-sm"><i class="fas fa-user-md"></i></div>
@@ -33,14 +41,18 @@
     </aside>
 
     <main class="flex-1 flex flex-col h-full relative overflow-hidden">
-        <header class="h-16 bg-white border-b border-gray-200 flex items-center px-8 flex-shrink-0">
-            <h1 class="text-xl font-bold text-gray-800">Patient Queue (Visits)</h1>
+        <header class="h-16 bg-white border-b border-gray-200 flex items-center px-8 flex-shrink-0 justify-between">
+            <h1 class="text-xl font-bold text-gray-800">Patient Queue (Waiting Room)</h1>
+            <button onclick="location.reload()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition">
+                <i class="fas fa-sync-alt mr-2"></i> Refresh
+            </button>
         </header>
 
         <div class="flex-1 overflow-y-auto p-8">
-            <div class="max-w-4xl grid gap-4">
+            <div class="max-w-5xl grid gap-4">
                 {% for visit in patients %}
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition flex justify-between items-center group">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition flex justify-between items-center group relative overflow-hidden">
+                        <div class="absolute left-0 top-0 bottom-0 w-1 bg-blue-500"></div>
                         <div>
                             <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
                                 {{ visit.patient.name }} 
@@ -53,19 +65,24 @@
                             </div>
                         </div>
 
-                        <a href="/start_consultation/{{ visit.id }}" 
-                           class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg shadow-sm transition transform group-hover:translate-x-1">
-                            Start Session <i class="fas fa-arrow-right ml-2"></i>
-                        </a>
+                        <div class="flex gap-3">
+                            <a href="/doctor/history?ic={{ visit.patient.ic_number }}" class="bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-2 px-4 rounded-lg transition flex items-center gap-2" title="View History">
+                                <i class="fas fa-history"></i> History
+                            </a>
+                            <a href="/start_consultation/{{ visit.id }}" 
+                               class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg shadow-sm transition transform group-hover:translate-x-1">
+                                Start Session <i class="fas fa-arrow-right ml-2"></i>
+                            </a>
+                        </div>
                     </div>
                 {% else %}
                     <div class="text-center py-20 bg-white rounded-xl border border-dashed border-gray-300">
+                        <div class="text-gray-300 text-6xl mb-4"><i class="fas fa-clipboard-check"></i></div>
                         <p class="text-gray-500 text-lg">No patients waiting in the queue.</p>
                     </div>
                 {% endfor %}
             </div>
         </div>
     </main>
-
 </body>
 </html>
