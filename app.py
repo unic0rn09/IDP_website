@@ -13,6 +13,8 @@ app.secret_key = os.urandom(24)
 # app.permanent_session_lifetime = timedelta(minutes=15)
 # db = SQLAlchemy(app)
 
+
+
 # --- SYSTEMATIC FIX: Absolute Path & Directory Creation ---
 # 1. Get the absolute path of the directory where app.py is located
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -135,20 +137,19 @@ def save_consultation():
 #         db.session.add(User(name="Dr. Strange", email='doctor@test.com', password_hash=generate_password_hash('doctor123'), role='doctor'))
 #         db.session.commit()
 #     return "Demo users created"
-
-
-    #real-time recording
-    @app.route('/process_audio', methods=['POST'])
-    def process_audio():
-        if 'audio_data' not in request.files:
-            return jsonify({'error': 'No audio file provided'}), 400
+# Real-time recording route
+# (Make sure this touches the left margin, no spaces before @)
+@app.route('/process_audio', methods=['POST'])
+def process_audio():
+    if 'audio_data' not in request.files:
+        return jsonify({'error': 'No audio file provided'}), 400
     
     audio_file = request.files['audio_data']
     patient_id = request.form.get('patient_id')
     
     # Save the file (Optional: good for debugging)
     # filename = f"consultation_{patient_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}.wav"
-    # audio_file.save(os.path.join('instance', filename))
+    # audio_file.save(os.path.join(INSTANCE_FOLDER, filename))
 
     # --- TODO: INTEGRATE AI HERE ---
     # 1. Send audio_file to OpenAI Whisper API -> Get text
