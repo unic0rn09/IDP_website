@@ -54,23 +54,39 @@
                             <i class="fas fa-user-plus text-purple-500"></i> Register New Patient
                         </h2>
                         
-                        <div class="grid grid-cols-2 gap-4 mb-4">
-                            <div class="col-span-2">
-                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">IC Number</label>
-                                <input id="new-ic" class="w-full border p-3 rounded-lg outline-none focus:border-purple-500 transition" placeholder="e.g. 901010-10-5555">
+                        <div id="register-step-1">
+                            <div class="grid grid-cols-2 gap-4 mb-4">
+                                <div class="col-span-2">
+                                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">IC Number</label>
+                                    <input id="new-ic" class="w-full border p-3 rounded-lg outline-none focus:border-purple-500 transition" placeholder="e.g. 901010-10-5555">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Full Name</label>
+                                    <input id="new-name" class="w-full border p-3 rounded-lg outline-none focus:border-purple-500 transition" placeholder="Name">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Age</label>
+                                    <input id="new-age" class="w-full border p-3 rounded-lg outline-none focus:border-purple-500 transition" placeholder="Age">
+                                </div>
                             </div>
-                            <div>
-                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Full Name</label>
-                                <input id="new-name" class="w-full border p-3 rounded-lg outline-none focus:border-purple-500 transition" placeholder="Name">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Age</label>
-                                <input id="new-age" class="w-full border p-3 rounded-lg outline-none focus:border-purple-500 transition" placeholder="Age">
-                            </div>
+                            <button id="btn-register" onclick="registerNew()" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-lg shadow-sm transition">
+                                Register Profile
+                            </button>
                         </div>
-                        <button onclick="registerNew()" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-lg shadow-sm transition">
-                            Register Profile
-                        </button>
+
+                        <div id="register-step-2" class="hidden mt-6 pt-6 border-t border-dashed border-gray-200 animate-fade-in">
+                            <div class="bg-green-50 text-green-800 p-3 rounded-lg text-sm mb-4 flex items-center gap-2">
+                                <i class="fas fa-check-circle"></i> Profile Registered! Now add them to the queue.
+                            </div>
+                            
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Visit Symptoms / Reason</label>
+                            <textarea id="new-symptoms" rows="2" class="w-full border p-3 rounded-lg outline-none focus:border-green-500 transition mb-4" placeholder="Enter reason for visit..."></textarea>
+                            
+                            <button onclick="addToQueue()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg shadow-md transition flex justify-center items-center gap-2">
+                                <i class="fas fa-list-ol"></i> Add to Waiting List
+                            </button>
+                        </div>
+
                     </div>
 
                 </div>
@@ -114,6 +130,8 @@
     </main>
 
     <script>
+        let registeredIC = '';
+
         function registerNew() {
             const ic = document.getElementById('new-ic').value;
             const name = document.getElementById('new-name').value;
@@ -129,13 +147,39 @@
             .then(r => r.json())
             .then(data => {
                 if(data.success) {
-                    alert("Registered Successfully! You can now check them in via the Patient List.");
-                    // Clear Register Form
-                    document.getElementById('new-ic').value = '';
-                    document.getElementById('new-name').value = '';
-                    document.getElementById('new-age').value = '';
+                    // Success! Switch to Step 2
+                    registeredIC = ic;
+                    
+                    // Disable Step 1 inputs to prevent changing
+                    document.getElementById('new-ic').disabled = true;
+                    document.getElementById('new-name').disabled = true;
+                    document.getElementById('new-age').disabled = true;
+                    document.getElementById('btn-register').classList.add('hidden'); // Hide the register button
+                    
+                    // Show Step 2 (Symptoms & Add to Queue)
+                    document.getElementById('register-step-2').classList.remove('hidden');
+                    document.getElementById('new-symptoms').focus();
                 } else {
                     alert(data.error);
+                }
+            });
+        }
+
+        function addToQueue() {
+            const symptoms = document.getElementById('new-symptoms').value;
+            if(!registeredIC) return alert("Error: No patient registered.");
+            if(!symptoms) return alert("Please enter symptoms before adding to queue.");
+
+            fetch('/nurse/create_visit', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ic: registeredIC, symptoms: symptoms})
+            })
+            .then(r => r.json())
+            .then(data => {
+                if(data.success) {
+                    alert("Patient Added to Waiting List!");
+                    location.reload(); // Refresh to show in queue
                 }
             });
         }
