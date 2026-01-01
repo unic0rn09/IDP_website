@@ -6,6 +6,10 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <meta http-equiv="refresh" content="30">
+    <style>
+        .toggle-checkbox:checked { right: 0; border-color: #68D391; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #68D391; }
+    </style>
 </head>
 <body class="bg-gray-50 h-screen flex overflow-hidden font-sans">
 
@@ -18,18 +22,29 @@
             
             <nav class="px-4 space-y-2 mt-4">
                 <div class="px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">Menu</div>
-                
                 <a href="/doctor/dashboard" class="flex items-center gap-3 px-4 py-3 bg-blue-50 text-blue-600 rounded-lg font-medium shadow-sm">
                     <i class="fas fa-user-clock w-5 text-center"></i> Patient Queue
                 </a>
-
                 <a href="/doctor/history" class="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 hover:text-blue-600 rounded-lg font-medium transition">
                     <i class="fas fa-history w-5 text-center"></i> Patient History
                 </a>
             </nav>
         </div>
 
-        <div class="p-4 border-t border-gray-100">
+        <div class="p-4 border-t border-gray-100 space-y-4">
+            <div class="bg-gray-50 p-3 rounded-xl border border-gray-200">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold uppercase text-gray-500">My Status</span>
+                    <span id="status-text" class="text-xs font-bold {{ 'text-green-500' if doctor_status == 'online' else 'text-gray-400' }}">
+                        {{ doctor_status|upper }}
+                    </span>
+                </div>
+                <div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+                    <input type="checkbox" name="toggle" id="status-toggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer" {{ 'checked' if doctor_status == 'online' else '' }}/>
+                    <label for="status-toggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                </div>
+            </div>
+
             <div class="flex items-center gap-3 bg-gray-50 p-3 rounded-xl hover:bg-gray-100 transition cursor-pointer">
                 <div class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-sm"><i class="fas fa-user-md"></i></div>
                 <div class="flex-1 min-w-0">
@@ -51,8 +66,12 @@
         <div class="flex-1 overflow-y-auto p-8">
             <div class="max-w-5xl grid gap-4">
                 {% for visit in patients %}
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition flex justify-between items-center group relative overflow-hidden">
-                        <div class="absolute left-0 top-0 bottom-0 w-1 bg-blue-500"></div>
+                    {% set is_my_patient = (visit.assigned_doctor.id == current_user_id) %}
+                    
+                    <div class="bg-white p-6 rounded-xl shadow-sm border {{ 'border-blue-200 ring-1 ring-blue-200' if is_my_patient else 'border-gray-100 opacity-75' }} flex justify-between items-center group relative overflow-hidden transition">
+                        
+                        <div class="absolute left-0 top-0 bottom-0 w-1 {{ 'bg-blue-500' if is_my_patient else 'bg-gray-300' }}"></div>
+                        
                         <div>
                             <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
                                 {{ visit.patient.name }} 
@@ -61,28 +80,54 @@
                             <p class="text-gray-600 mt-2 text-sm"><strong class="text-gray-900">Symptoms:</strong> {{ visit.symptoms }}</p>
                             <div class="text-xs text-gray-400 mt-2 flex gap-4">
                                 <span><i class="fas fa-id-card"></i> IC: {{ visit.patient.ic_number }}</span>
-                                <span><i class="far fa-clock"></i> {{ visit.timestamp.strftime('%H:%M') }}</span>
+                                <span class="{{ 'text-blue-600 font-bold' if is_my_patient else 'text-gray-400' }}">
+                                    <i class="fas fa-user-md"></i> Assigned: {{ visit.assigned_doctor.name }}
+                                </span>
                             </div>
                         </div>
 
                         <div class="flex gap-3">
-                            <a href="/doctor/history?ic={{ visit.patient.ic_number }}" class="bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-2 px-4 rounded-lg transition flex items-center gap-2" title="View History">
-                                <i class="fas fa-history"></i> History
+                            <a href="/doctor/history?ic={{ visit.patient.ic_number }}" class="bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-2 px-4 rounded-lg transition flex items-center gap-2">
+                                <i class="fas fa-history"></i>
                             </a>
-                            <a href="/start_consultation/{{ visit.id }}" 
-                               class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg shadow-sm transition transform group-hover:translate-x-1">
-                                Start Session <i class="fas fa-arrow-right ml-2"></i>
-                            </a>
+
+                            {% if is_my_patient %}
+                                <a href="/start_consultation/{{ visit.id }}" 
+                                   class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg shadow-sm transition transform group-hover:translate-x-1">
+                                    Start Session <i class="fas fa-arrow-right ml-2"></i>
+                                </a>
+                            {% else %}
+                                <button disabled class="bg-gray-200 text-gray-400 font-bold py-2 px-6 rounded-lg cursor-not-allowed">
+                                    View Only <i class="fas fa-lock ml-2"></i>
+                                </button>
+                            {% endif %}
                         </div>
                     </div>
                 {% else %}
                     <div class="text-center py-20 bg-white rounded-xl border border-dashed border-gray-300">
-                        <div class="text-gray-300 text-6xl mb-4"><i class="fas fa-clipboard-check"></i></div>
                         <p class="text-gray-500 text-lg">No patients waiting in the queue.</p>
                     </div>
                 {% endfor %}
             </div>
         </div>
     </main>
+
+    <script>
+        document.getElementById('status-toggle').addEventListener('change', function() {
+            const isOnline = this.checked;
+            const newStatus = isOnline ? 'online' : 'away';
+            fetch('/doctor/toggle_status', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({status: newStatus})
+            })
+            .then(r => r.json())
+            .then(data => {
+                const label = document.getElementById('status-text');
+                label.innerText = newStatus.toUpperCase();
+                label.className = `text-xs font-bold ${isOnline ? 'text-green-500' : 'text-gray-400'}`;
+            });
+        });
+    </script>
 </body>
 </html>

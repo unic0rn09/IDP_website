@@ -7,35 +7,26 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body class="bg-gray-50 h-screen flex overflow-hidden font-sans">
-
     <aside class="w-64 bg-white border-r border-gray-200 flex flex-col justify-between flex-shrink-0">
         <div>
             <div class="p-6 flex items-center gap-3">
                 <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold shadow-sm">MS</div>
                 <div class="font-bold text-gray-700 text-lg">Medical Scribe</div>
             </div>
-            
             <nav class="px-4 space-y-2 mt-4">
                 <div class="px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">Menu</div>
-                
                 <a href="/doctor/dashboard" class="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 hover:text-blue-600 rounded-lg font-medium transition">
                     <i class="fas fa-user-clock w-5 text-center"></i> Patient Queue
                 </a>
-
                 <a href="/doctor/history" class="flex items-center gap-3 px-4 py-3 bg-blue-50 text-blue-600 rounded-lg font-medium shadow-sm">
                     <i class="fas fa-history w-5 text-center"></i> Patient History
                 </a>
             </nav>
         </div>
-
         <div class="p-4 border-t border-gray-100">
-            <div class="flex items-center gap-3 bg-gray-50 p-3 rounded-xl hover:bg-gray-100 transition cursor-pointer">
-                <div class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-sm"><i class="fas fa-user-md"></i></div>
-                <div class="flex-1 min-w-0">
-                    <div class="text-sm font-bold text-gray-800">Dr. {{ doctor_name }}</div>
-                </div>
-                <a href="/logout" class="text-gray-400 hover:text-red-500"><i class="fas fa-sign-out-alt"></i></a>
-            </div>
+            <a href="/logout" class="flex items-center gap-3 bg-gray-50 p-3 rounded-xl hover:bg-gray-100 transition cursor-pointer text-gray-600">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
         </div>
     </aside>
 
@@ -46,29 +37,23 @@
 
         <div class="flex-1 overflow-y-auto p-8">
             <div class="max-w-4xl mx-auto">
-                
                 <div class="bg-white p-8 rounded-xl shadow-sm border border-gray-200 mb-8">
                     <div class="flex gap-4">
                         <div class="flex-1">
                             <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Patient IC Number</label>
-                            <input id="history-ic" placeholder="e.g. 901010-10-5555" 
-                                   class="w-full border border-gray-300 p-4 rounded-lg text-lg outline-none focus:border-blue-500 transition">
+                            <input id="history-ic" placeholder="e.g. 901010-10-5555" class="w-full border border-gray-300 p-4 rounded-lg text-lg outline-none focus:border-blue-500 transition">
                         </div>
                         <div class="flex items-end">
-                            <button onclick="searchHistory()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-lg shadow-md transition">
-                                <i class="fas fa-search mr-2"></i> Search Records
-                            </button>
+                            <button onclick="searchHistory()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-lg shadow-md transition"><i class="fas fa-search mr-2"></i> Search Records</button>
                         </div>
                     </div>
                 </div>
-
                 <div id="history-container" class="space-y-4">
                     <div class="text-center py-20 opacity-50">
                         <i class="fas fa-folder-open text-6xl text-gray-300 mb-4"></i>
                         <p class="text-gray-500">Enter a Patient IC to view medical history.</p>
                     </div>
                 </div>
-
             </div>
         </div>
     </main>
@@ -76,100 +61,42 @@
     <div id="history-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col animate-fade-in">
             <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-xl">
-                <div>
-                    <h2 class="text-xl font-bold text-gray-800">Visit Details</h2>
-                    <p id="modal-date" class="text-sm text-gray-500 font-mono mt-1"></p>
-                </div>
+                <div><h2 class="text-xl font-bold text-gray-800">Visit Details</h2><p id="modal-date" class="text-sm text-gray-500 font-mono mt-1"></p></div>
                 <button onclick="closeModal()" class="text-gray-400 hover:text-red-500 text-2xl"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-8 overflow-y-auto">
-                <div class="mb-6">
-                    <span class="text-xs font-bold text-blue-500 uppercase tracking-wider">Symptoms / Context</span>
-                    <p id="modal-symptoms" class="text-lg text-gray-800 mt-2 font-medium"></p>
-                </div>
-                <div>
-                    <span class="text-xs font-bold text-blue-500 uppercase tracking-wider">Clinical Note (SOAP)</span>
-                    <pre id="modal-note" class="text-sm text-gray-700 bg-gray-50 p-6 rounded-lg mt-2 border border-gray-200 whitespace-pre-wrap font-sans leading-relaxed"></pre>
-                </div>
+                <div class="mb-6"><span class="text-xs font-bold text-blue-500 uppercase tracking-wider">Symptoms</span><p id="modal-symptoms" class="text-lg text-gray-800 mt-2 font-medium"></p></div>
+                <div><span class="text-xs font-bold text-blue-500 uppercase tracking-wider">Clinical Note</span><pre id="modal-note" class="text-sm text-gray-700 bg-gray-50 p-6 rounded-lg mt-2 border border-gray-200 whitespace-pre-wrap font-sans leading-relaxed"></pre></div>
             </div>
         </div>
     </div>
 
     <script>
-        // Check URL for pre-filled IC (from dashboard redirect)
-        window.onload = function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const ic = urlParams.get('ic');
-            if(ic) {
-                document.getElementById('history-ic').value = ic;
-                searchHistory();
-            }
-        }
-
+        window.onload = function() { const urlParams = new URLSearchParams(window.location.search); const ic = urlParams.get('ic'); if(ic) { document.getElementById('history-ic').value = ic; searchHistory(); } }
         function searchHistory() {
             const ic = document.getElementById('history-ic').value;
             if(!ic) return alert("Please enter an IC number");
-            
             const container = document.getElementById('history-container');
-            container.innerHTML = '<div class="text-center py-20"><i class="fas fa-spinner fa-spin text-3xl text-blue-500"></i><p class="mt-4 text-gray-500">Fetching records...</p></div>';
-
-            fetch('/patient/history/' + ic)
-            .then(r => r.json())
-            .then(data => {
+            container.innerHTML = '<div class="text-center py-20"><i class="fas fa-spinner fa-spin text-3xl text-blue-500"></i></div>';
+            fetch('/patient/history/' + ic).then(r => r.json()).then(data => {
                 container.innerHTML = '';
-                
-                if(data.length === 0) {
-                    container.innerHTML = `
-                        <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-8 text-center">
-                            <i class="fas fa-exclamation-circle text-yellow-500 text-3xl mb-3"></i>
-                            <h3 class="text-yellow-800 font-bold">No Records Found</h3>
-                            <p class="text-yellow-700 text-sm">No visit history found for IC: ${ic}</p>
-                        </div>`;
-                    return;
-                }
-
-                // Create Header
-                const header = document.createElement('div');
-                header.className = "flex justify-between items-center mb-4 px-2";
-                header.innerHTML = `<h3 class="font-bold text-gray-700 text-lg">Found ${data.length} Visits</h3><span class="text-sm text-gray-400">IC: ${ic}</span>`;
-                container.appendChild(header);
-
+                if(data.length === 0) { container.innerHTML = '<div class="text-center p-8 text-yellow-600 bg-yellow-50 rounded-xl">No Records Found</div>'; return; }
                 data.forEach(visit => {
                     const card = document.createElement('div');
-                    card.className = "bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-300 cursor-pointer transition group";
+                    card.className = "bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md cursor-pointer transition";
                     card.onclick = () => showVisitDetails(visit);
-                    
-                    card.innerHTML = `
-                        <div class="flex justify-between items-start mb-2">
-                            <span class="font-bold text-gray-800 text-lg">${visit.date}</span>
-                            <span class="text-xs px-3 py-1 rounded-full uppercase font-bold tracking-wide 
-                                ${visit.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">
-                                ${visit.status}
-                            </span>
-                        </div>
-                        <p class="text-gray-600 mb-3 line-clamp-2">"${visit.symptoms}"</p>
-                        <div class="text-sm text-blue-600 font-bold group-hover:underline flex items-center gap-2">
-                            View Full Note <i class="fas fa-arrow-right"></i>
-                        </div>
-                    `;
+                    card.innerHTML = `<div class="flex justify-between mb-2"><span class="font-bold text-lg">${visit.date}</span><span class="text-xs px-3 py-1 rounded-full uppercase font-bold bg-blue-100 text-blue-700">${visit.status}</span></div><p class="text-gray-600 line-clamp-2">"${visit.symptoms}"</p>`;
                     container.appendChild(card);
                 });
-            })
-            .catch(err => {
-                container.innerHTML = '<div class="text-center text-red-500">Error fetching history.</div>';
             });
         }
-
         function showVisitDetails(visit) {
-            document.getElementById('modal-date').innerText = visit.date + ' • ' + visit.status.toUpperCase();
+            document.getElementById('modal-date').innerText = visit.date;
             document.getElementById('modal-symptoms').innerText = visit.symptoms;
             document.getElementById('modal-note').innerText = visit.note;
             document.getElementById('history-modal').classList.remove('hidden');
         }
-
-        function closeModal() {
-            document.getElementById('history-modal').classList.add('hidden');
-        }
+        function closeModal() { document.getElementById('history-modal').classList.add('hidden'); }
     </script>
 </body>
 </html>

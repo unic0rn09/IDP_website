@@ -14,27 +14,19 @@
                 <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold shadow-sm">MS</div>
                 <div class="font-bold text-gray-700 text-lg">Medical Scribe</div>
             </div>
-            
             <nav class="px-4 space-y-2 mt-4">
-                <div class="px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">Menu</div>
-                
                 <a href="/nurse/dashboard" class="flex items-center gap-3 px-4 py-3 bg-blue-50 text-blue-600 rounded-lg font-medium shadow-sm">
                     <i class="fas fa-columns w-5 text-center"></i> Dashboard
                 </a>
-
                 <a href="/nurse/patient_list" class="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 hover:text-blue-600 rounded-lg font-medium transition">
                     <i class="fas fa-users w-5 text-center"></i> Patient List
                 </a>
             </nav>
         </div>
         <div class="p-4 border-t border-gray-100">
-            <div class="flex items-center gap-3 bg-gray-50 p-3 rounded-xl hover:bg-gray-100 transition cursor-pointer">
-                <div class="w-10 h-10 bg-teal-500 rounded-full flex items-center justify-center text-white shadow-sm"><i class="fas fa-user-nurse"></i></div>
-                <div class="flex-1 min-w-0">
-                    <div class="text-sm font-bold text-gray-800">Nurse Station</div>
-                </div>
-                <a href="/logout" class="text-gray-400 hover:text-red-500"><i class="fas fa-sign-out-alt"></i></a>
-            </div>
+            <a href="/logout" class="flex items-center gap-3 bg-gray-50 p-3 rounded-xl hover:bg-gray-100 transition cursor-pointer text-gray-600">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
         </div>
     </aside>
 
@@ -47,7 +39,6 @@
             <div class="grid grid-cols-12 gap-8 max-w-7xl">
                 
                 <div class="col-span-12 lg:col-span-7 space-y-6">
-                    
                     <div class="bg-white p-6 rounded-xl shadow-sm border border-purple-100 relative overflow-hidden">
                         <div class="absolute top-0 left-0 w-1 h-full bg-purple-500"></div>
                         <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
@@ -76,19 +67,26 @@
 
                         <div id="register-step-2" class="hidden mt-6 pt-6 border-t border-dashed border-gray-200 animate-fade-in">
                             <div class="bg-green-50 text-green-800 p-3 rounded-lg text-sm mb-4 flex items-center gap-2">
-                                <i class="fas fa-check-circle"></i> Profile Registered! Now add them to the queue.
+                                <i class="fas fa-check-circle"></i> Profile Registered!
                             </div>
                             
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Visit Symptoms / Reason</label>
-                            <textarea id="new-symptoms" rows="2" class="w-full border p-3 rounded-lg outline-none focus:border-green-500 transition mb-4" placeholder="Enter reason for visit..."></textarea>
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Visit Symptoms</label>
+                            <textarea id="new-symptoms" rows="2" class="w-full border p-3 rounded-lg outline-none focus:border-green-500 transition mb-4" placeholder="Enter symptoms..."></textarea>
                             
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Assign Doctor</label>
+                            <div class="relative mb-4">
+                                <select id="doctor-select" class="w-full border p-3 rounded-lg outline-none focus:border-green-500 transition appearance-none bg-white">
+                                    <option value="auto">✨ Random / Any Available</option>
+                                </select>
+                                <i class="fas fa-chevron-down absolute right-4 top-4 text-gray-400 pointer-events-none"></i>
+                            </div>
+
                             <button onclick="addToQueue()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg shadow-md transition flex justify-center items-center gap-2">
                                 <i class="fas fa-list-ol"></i> Add to Waiting List
                             </button>
                         </div>
 
                     </div>
-
                 </div>
 
                 <div class="col-span-12 lg:col-span-5">
@@ -99,24 +97,22 @@
                             </h2>
                             <div class="flex items-center gap-2">
                                 <span class="bg-gray-100 text-gray-600 text-xs font-bold px-2 py-1 rounded-full">{{ queue|length }}</span>
-                                <button onclick="location.reload()" class="text-blue-500 hover:text-blue-700 text-sm" title="Refresh Queue"><i class="fas fa-sync"></i></button>
+                                <button onclick="location.reload()" class="text-blue-500 hover:text-blue-700 text-sm"><i class="fas fa-sync"></i></button>
                             </div>
                         </div>
                         
                         <ul class="space-y-3">
                             {% for visit in queue %}
-                                <li class="p-4 rounded-lg border border-gray-100 bg-gray-50 hover:bg-white hover:shadow-md transition flex justify-between items-center group">
+                                <li class="p-4 rounded-lg border border-gray-100 bg-gray-50 hover:bg-white transition flex justify-between items-center">
                                     <div>
-                                        <div class="flex items-center gap-2">
-                                            <span class="font-bold text-gray-800">{{ visit.patient.name }}</span> 
-                                            <span class="text-xs text-gray-500 bg-white border px-1.5 rounded">{{ visit.patient.age }}</span>
-                                        </div>
+                                        <div class="font-bold text-gray-800">{{ visit.patient.name }}</div>
                                         <div class="text-xs text-gray-500 mt-1">IC: {{ visit.patient.ic_number }}</div>
-                                        <p class="text-sm text-gray-600 mt-1 italic">"{{ visit.symptoms }}"</p>
+                                        <div class="text-xs text-blue-600 mt-1 font-bold">
+                                            <i class="fas fa-user-md mr-1"></i> 
+                                            {{ visit.assigned_doctor.name if visit.assigned_doctor else 'Unassigned' }}
+                                        </div>
                                     </div>
-                                    <button onclick="cancelVisit({{ visit.id }})" class="text-gray-300 hover:text-red-500 p-2 transition">
-                                        <i class="fas fa-times-circle text-lg"></i>
-                                    </button>
+                                    <button onclick="cancelVisit({{ visit.id }})" class="text-gray-300 hover:text-red-500 p-2"><i class="fas fa-times-circle"></i></button>
                                 </li>
                             {% else %}
                                 <li class="text-center py-10 text-gray-400 italic">Queue is empty.</li>
@@ -131,13 +127,21 @@
 
     <script>
         let registeredIC = '';
+        fetch('/nurse/get_online_doctors').then(r=>r.json()).then(docs => {
+            const sel = document.getElementById('doctor-select');
+            docs.forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d.id;
+                opt.text = `👨‍⚕️ ${d.name}`;
+                sel.appendChild(opt);
+            });
+        });
 
         function registerNew() {
             const ic = document.getElementById('new-ic').value;
             const name = document.getElementById('new-name').value;
             const age = document.getElementById('new-age').value;
-
-            if(!ic || !name) return alert("Please fill in required fields");
+            if(!ic || !name) return alert("Required fields missing");
 
             fetch('/nurse/register_patient', {
                 method: 'POST',
@@ -147,48 +151,38 @@
             .then(r => r.json())
             .then(data => {
                 if(data.success) {
-                    // Success! Switch to Step 2
                     registeredIC = ic;
-                    
-                    // Disable Step 1 inputs to prevent changing
                     document.getElementById('new-ic').disabled = true;
                     document.getElementById('new-name').disabled = true;
                     document.getElementById('new-age').disabled = true;
-                    document.getElementById('btn-register').classList.add('hidden'); // Hide the register button
-                    
-                    // Show Step 2 (Symptoms & Add to Queue)
+                    document.getElementById('btn-register').classList.add('hidden');
                     document.getElementById('register-step-2').classList.remove('hidden');
-                    document.getElementById('new-symptoms').focus();
-                } else {
-                    alert(data.error);
-                }
+                } else alert(data.error);
             });
         }
 
         function addToQueue() {
             const symptoms = document.getElementById('new-symptoms').value;
-            if(!registeredIC) return alert("Error: No patient registered.");
-            if(!symptoms) return alert("Please enter symptoms before adding to queue.");
+            const docId = document.getElementById('doctor-select').value;
+            
+            if(!symptoms) return alert("Enter symptoms");
 
             fetch('/nurse/create_visit', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ic: registeredIC, symptoms: symptoms})
+                body: JSON.stringify({ic: registeredIC, symptoms: symptoms, doctor_id: docId})
             })
             .then(r => r.json())
             .then(data => {
                 if(data.success) {
-                    alert("Patient Added to Waiting List!");
-                    location.reload(); // Refresh to show in queue
-                }
+                    alert(`Assigned to ${data.assigned_to}!`);
+                    location.reload();
+                } else alert(data.error);
             });
         }
 
         function cancelVisit(id) {
-            if(confirm("Cancel this visit?")) {
-                fetch('/nurse/cancel_visit/' + id, {method: 'POST'})
-                .then(() => location.reload());
-            }
+            if(confirm("Cancel?")) fetch('/nurse/cancel_visit/' + id, {method: 'POST'}).then(() => location.reload());
         }
     </script>
 </body>
