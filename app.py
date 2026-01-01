@@ -124,7 +124,19 @@ def cancel_visit(visit_id):
     db.session.commit()
     return jsonify({'success': True})
 
-# --- FOR NURSE VIEW/DELETE ---
+
+#  Nurse Patient List
+@app.route('/nurse/patient_list')
+def nurse_patient_list():
+    if session.get('role') != 'nurse': return redirect('/login')
+    
+    # Fetch all visits, sorted by newest first
+    # We join with Patient to ensure we can search/sort by name if needed
+    visits = Visit.query.join(Patient).order_by(Visit.timestamp.desc()).all()
+    
+    return render_template('nurse_patient_list.html', visits=visits)
+
+# NURSE VIEW/DELETE
 @app.route('/nurse/view_patient/<ic>')
 def view_patient_page(ic):
     if session.get('role') != 'nurse': return redirect('/login')
