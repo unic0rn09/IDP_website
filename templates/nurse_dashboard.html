@@ -48,49 +48,10 @@
                 
                 <div class="col-span-12 lg:col-span-7 space-y-6">
                     
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-blue-100 relative overflow-hidden">
-                        <div class="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
-                        <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                            <i class="fas fa-search text-blue-500"></i> Check In Existing Patient
-                        </h2>
-                        
-                        <div class="flex gap-2 mb-4">
-                            <input id="search-ic" type="text" placeholder="Enter IC Number..." 
-                                   class="border border-gray-300 p-3 flex-1 rounded-lg outline-none focus:border-blue-500 transition">
-                            <button onclick="searchPatient()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 rounded-lg font-bold transition">Search</button>
-                        </div>
-
-                        <div id="existing-form" class="hidden bg-blue-50 rounded-lg p-4 border border-blue-100">
-                            <div class="flex justify-between items-start mb-4">
-                                <div>
-                                    <div class="text-xs text-blue-600 font-bold uppercase tracking-wider mb-1">Patient Found</div>
-                                    <div class="flex gap-2 mb-2">
-                                        <input id="edit-name" class="font-bold text-gray-800 bg-transparent border-b border-blue-300 focus:bg-white px-1 outline-none" placeholder="Name">
-                                        <input id="edit-age" class="w-16 text-gray-600 bg-transparent border-b border-blue-300 focus:bg-white px-1 outline-none" placeholder="Age">
-                                    </div>
-                                </div>
-                                <button onclick="saveEdit()" class="text-xs bg-white border border-blue-200 text-blue-600 px-3 py-1 rounded hover:bg-blue-100">
-                                    <i class="fas fa-save mr-1"></i> Quick Save
-                                </button>
-                            </div>
-                            
-                            <textarea id="visit-symptoms" rows="2" class="w-full border p-3 rounded-lg focus:border-blue-500 outline-none mb-3" placeholder="Enter Visit Symptoms / Reason..."></textarea>
-                            
-                            <div class="flex gap-3">
-                                <button onclick="viewPatientPage()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 rounded-lg shadow-sm transition">
-                                    <i class="fas fa-id-badge mr-2"></i> View Profile
-                                </button>
-                                <button onclick="createVisit()" class="flex-[2] bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 shadow-sm transition">
-                                    <i class="fas fa-check mr-2"></i> Check In (Add to Queue)
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
                     <div class="bg-white p-6 rounded-xl shadow-sm border border-purple-100 relative overflow-hidden">
                         <div class="absolute top-0 left-0 w-1 h-full bg-purple-500"></div>
                         <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                            <i class="fas fa-user-plus text-purple-500"></i> Register New
+                            <i class="fas fa-user-plus text-purple-500"></i> Register New Patient
                         </h2>
                         
                         <div class="grid grid-cols-2 gap-4 mb-4">
@@ -153,68 +114,6 @@
     </main>
 
     <script>
-        let currentIC = '';
-
-        function searchPatient() {
-            const ic = document.getElementById('search-ic').value;
-            if(!ic) return alert("Enter IC");
-            
-            fetch('/nurse/search_patient', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ic_number: ic})
-            })
-            .then(r => r.json())
-            .then(data => {
-                if(data.found) {
-                    currentIC = ic;
-                    document.getElementById('existing-form').classList.remove('hidden');
-                    document.getElementById('edit-name').value = data.name;
-                    document.getElementById('edit-age').value = data.age;
-                } else {
-                    alert("Patient not found. Please use the 'Register New' section.");
-                    document.getElementById('existing-form').classList.add('hidden');
-                }
-            });
-        }
-
-        function viewPatientPage() {
-            if(!currentIC) return;
-            window.location.href = `/nurse/view_patient/${currentIC}`;
-        }
-
-        function saveEdit() {
-            if(!currentIC) return;
-            const name = document.getElementById('edit-name').value;
-            const age = document.getElementById('edit-age').value;
-
-            fetch('/nurse/update_patient', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ic: currentIC, name: name, age: age})
-            })
-            .then(r => r.json())
-            .then(data => {
-                if(data.success) alert("Patient info updated!");
-            });
-        }
-
-        function createVisit() {
-            if(!currentIC) return;
-            const symptoms = document.getElementById('visit-symptoms').value;
-            if(!symptoms) return alert("Please enter symptoms");
-
-            fetch('/nurse/create_visit', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ic: currentIC, symptoms: symptoms})
-            })
-            .then(r => r.json())
-            .then(data => {
-                if(data.success) location.reload();
-            });
-        }
-
         function registerNew() {
             const ic = document.getElementById('new-ic').value;
             const name = document.getElementById('new-name').value;
@@ -230,9 +129,8 @@
             .then(r => r.json())
             .then(data => {
                 if(data.success) {
-                    alert("Registered Successfully!");
-                    document.getElementById('search-ic').value = ic;
-                    searchPatient(); 
+                    alert("Registered Successfully! You can now check them in via the Patient List.");
+                    // Clear Register Form
                     document.getElementById('new-ic').value = '';
                     document.getElementById('new-name').value = '';
                     document.getElementById('new-age').value = '';
