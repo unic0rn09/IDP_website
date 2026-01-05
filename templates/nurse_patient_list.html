@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Patient List</title>
+    <title>Patient Directory</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
@@ -32,7 +32,7 @@
 
     <main class="flex-1 flex flex-col h-full relative overflow-hidden">
         <header class="h-16 bg-white border-b border-gray-200 flex items-center px-8 flex-shrink-0">
-            <h1 class="text-xl font-bold text-gray-800">Patient List</h1>
+            <h1 class="text-xl font-bold text-gray-800">Patient Directory (Profile Management)</h1>
         </header>
 
         <div class="flex-1 overflow-y-auto p-8">
@@ -54,32 +54,31 @@
                             <tr>
                                 <th class="p-4 text-xs font-bold text-gray-500 uppercase">Patient Name</th>
                                 <th class="p-4 text-xs font-bold text-gray-500 uppercase">IC Number</th>
-                                <th class="p-4 text-xs font-bold text-gray-500 uppercase">Registered</th>
-                                <th class="p-4 text-xs font-bold text-gray-500 uppercase">Status</th>
+                                <th class="p-4 text-xs font-bold text-gray-500 uppercase">Age</th>
+                                <th class="p-4 text-xs font-bold text-gray-500 uppercase">History</th>
                                 <th class="p-4 text-xs font-bold text-gray-500 uppercase text-right">Action</th>
                             </tr>
                         </thead>
                         <tbody id="patientTable" class="divide-y divide-gray-100">
-                            {% for visit in visits %}
-                            <tr class="hover:bg-gray-50 transition">
-                                <td class="p-4 font-bold text-gray-800">{{ visit.patient.name }}</td>
-                                <td class="p-4 text-sm text-gray-600">{{ visit.patient.ic_number }}</td>
-                                <td class="p-4 text-sm text-gray-600">{{ visit.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
-                                <td class="p-4">
-                                    {% if visit.status == 'completed' %}
-                                        <span class="bg-green-100 text-green-700 text-xs font-bold px-3 py-1 rounded-full uppercase"><i class="fas fa-check-circle mr-1"></i> DONE</span>
-                                    {% elif visit.status == 'waiting' %}
-                                        <span class="bg-orange-100 text-orange-700 text-xs font-bold px-3 py-1 rounded-full uppercase"><i class="fas fa-clock mr-1"></i> WAITING</span>
-                                    {% else %}
-                                        <span class="bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1 rounded-full uppercase">{{ visit.status }}</span>
-                                    {% endif %}
+                            {% for p in patients %}
+                            <tr class="hover:bg-gray-50 transition group">
+                                <td class="p-4 font-bold text-gray-800">{{ p.name }}</td>
+                                <td class="p-4 text-sm text-gray-600 font-mono">{{ p.ic_number }}</td>
+                                <td class="p-4 text-sm text-gray-600">{{ p.age }}</td>
+                                <td class="p-4 text-sm text-gray-500">
+                                    <span class="bg-gray-100 px-2 py-1 rounded text-xs">
+                                        {{ p.visits|length }} Visits
+                                    </span>
                                 </td>
                                 <td class="p-4 text-right">
-                                    <a href="/nurse/view_patient/{{ visit.patient.ic_number }}" class="text-blue-500 hover:text-blue-700 text-sm font-bold">View <i class="fas fa-arrow-right"></i></a>
+                                    <a href="/nurse/view_patient/{{ p.ic_number }}" 
+                                       class="bg-blue-100 hover:bg-blue-600 hover:text-white text-blue-600 text-xs font-bold px-4 py-2 rounded-lg transition">
+                                        Manage Profile <i class="fas fa-arrow-right ml-1"></i>
+                                    </a>
                                 </td>
                             </tr>
                             {% else %}
-                            <tr><td colspan="5" class="p-8 text-center text-gray-400 italic">No records found.</td></tr>
+                            <tr><td colspan="5" class="p-8 text-center text-gray-400 italic">No patients found in database.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -88,6 +87,7 @@
             </div>
         </div>
     </main>
+
     <script>
         function filterTable() {
             const filter = document.getElementById("searchInput").value.toUpperCase();

@@ -53,7 +53,7 @@
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ic: ic})
-                }).then(r => r.json()).then(data => { if(data.success) { alert("Deleted."); window.location.href = '/nurse/dashboard'; }});
+                }).then(r => r.json()).then(data => { if(data.success) { alert("Deleted."); window.location.href = '/nurse/patient_list'; }});
             }
         }
     </script>

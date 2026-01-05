@@ -89,41 +89,40 @@ def nurse_dashboard():
     if 'user_id' not in session or session.get('role') != 'nurse':
         return redirect(url_for('login'))
 
-    found_patient = None # Variable to hold search results
+    found_patient = None 
     
     if request.method == 'POST':
         action = request.form.get('action')
 
         # --- ACTION 1: REGISTER NEW PATIENT ---
         if action == 'register_new':
+            # Get data from HTML form
             name = request.form['name']
             ic = request.form['ic']
-            gender = request.form['gender']
             age = request.form['age']
-            height = request.form['height']
-            weight = request.form['weight']
-            phone = request.form['phone']
-            symptom = request.form['symptom']
-
-            # Check if patient exists
+            symptom_text = request.form['symptom'] 
+            
+            # Note: We retrieve these but DO NOT save them because 
+            # the Patient model in app.py doesn't have columns for them yet.
+            # gender = request.form['gender']
+            # phone = request.form['phone'] 
+            
             if Patient.query.filter_by(ic_number=ic).first():
                 flash('Patient with this IC already exists!', 'error')
             else:
-                # Create Patient
-                new_patient = Patient(
-                    name=name, ic_number=ic, gender=gender, age=age, 
-                    height=height, weight=weight, phone=phone
-                )
+                # 1. Create Patient (Only using fields that exist in your DB model)
+                new_patient = Patient(name=name, ic_number=ic, age=age)
                 db.session.add(new_patient)
-                db.session.flush() # Flush to get the new_patient.id before commit
+                db.session.flush() # Get ID before committing
 
-                # Create Queue Ticket
-                new_queue = Queue(
+                # 2. Create Visit (Replaces 'Queue')
+                # IMPORTANT: We map form 'symptom' (singular) to DB 'symptoms' (plural)
+                new_visit = Visit(
                     patient_id=new_patient.id, 
-                    status='Waiting', 
-                    symptom=symptom
+                    status='waiting',      # Lowercase 'waiting' so Doctor can see it
+                    symptoms=symptom_text
                 )
-                db.session.add(new_queue)
+                db.session.add(new_visit)
                 db.session.commit()
                 flash('New patient registered and added to queue!', 'success')
 
@@ -139,28 +138,33 @@ def nurse_dashboard():
         # --- ACTION 3: ADD EXISTING PATIENT TO QUEUE ---
         elif action == 'add_existing_to_queue':
             patient_id = request.form.get('patient_id')
-            symptom = request.form.get('symptom')
+            symptom_text = request.form.get('symptom')
             
-            new_queue = Queue(
+            # Create Visit
+            new_visit = Visit(
                 patient_id=patient_id, 
-                status='Waiting', 
-                symptom=symptom
+                status='waiting', 
+                symptoms=symptom_text
             )
-            db.session.add(new_queue)
+            db.session.add(new_visit)
             db.session.commit()
             flash('Existing patient added to queue successfully!', 'success')
-            return redirect(url_for('nurse_dashboard')) # Reset search state
+            return redirect(url_for('nurse_dashboard'))
 
-    # Fetch current queue for display
-    queue_list = Queue.query.filter_by(status='Waiting').order_by(Queue.queue_time.desc()).all()
+    # Fetch Queue (Use Visit model, not Queue)
+    queue_list = Visit.query.filter_by(status='waiting').order_by(Visit.timestamp.desc()).all()
     
     return render_template('nurse_dashboard.html', queue=queue_list, found_patient=found_patient)
 
 @app.route('/nurse/patient_list')
 def nurse_patient_list():
-    if session.get('role') != 'nurse': return redirect('/login')
-    visits = Visit.query.join(Patient).order_by(Visit.timestamp.desc()).all()
-    return render_template('nurse_patient_list.html', visits=visits)
+    if session.get('role') != 'nurse': 
+        return redirect('/login')
+    
+    # Fetch all unique patients to display in the directory
+    patients = Patient.query.order_by(Patient.name.asc()).all()
+    
+    return render_template('nurse_patient_list.html', patients=patients)
 
 @app.route('/nurse/view_patient/<ic>')
 def view_patient_page(ic):
