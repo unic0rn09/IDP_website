@@ -231,9 +231,9 @@ if __name__ == '__main__':
         if not User.query.first():
             print("Creating Test Users...")
             db.session.add(User(name="Nurse", email='nurse@test.com', password_hash=generate_password_hash('nurse123'), role='nurse'))
-            db.session.add(User(name="Dr. Bambi", email='bambi@test.com', password_hash=generate_password_hash('doctor123'), role='doctor', status='online'))
-            db.session.add(User(name="Dr. Bambi2", email='bambi2@test.com', password_hash=generate_password_hash('doctor123'), role='doctor', status='away'))
-            db.session.add(User(name="Dr. Bambi3", email='bambi3@test.com', password_hash=generate_password_hash('doctor123'), role='doctor', status='online'))
-            db.session.add(User(name="Dr. Bambi4", email='bambi4@test.com', password_hash=generate_password_hash('doctor123'), role='doctor', status='online'))
+            db.session.add(User(name="Bambi", email='bambi@test.com', password_hash=generate_password_hash('doctor123'), role='doctor', status='online'))
+            db.session.add(User(name="Bambi2", email='bambi2@test.com', password_hash=generate_password_hash('doctor123'), role='doctor', status='away'))
+            db.session.add(User(name="Bambi3", email='bambi3@test.com', password_hash=generate_password_hash('doctor123'), role='doctor', status='online'))
+            db.session.add(User(name="Bambi4", email='bambi4@test.com', password_hash=generate_password_hash('doctor123'), role='doctor', status='online'))
             db.session.commit()
     app.run(debug=True)
