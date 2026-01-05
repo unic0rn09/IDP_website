@@ -28,9 +28,6 @@
                 <a href="/doctor/history" class="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 hover:text-blue-600 rounded-lg font-medium transition">
                     <i class="fas fa-history w-5 text-center"></i> Patient History
                 </a>
-                <a href="/doctor/demo_session" class="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-purple-50 hover:text-purple-600 rounded-lg font-medium transition mt-4 border-t border-gray-100">
-                    <i class="fas fa-flask w-5 text-center"></i> Demo Session
-                </a>
             </nav>
         </div>
 
@@ -72,6 +69,7 @@
                     {% set is_my_patient = (visit.assigned_doctor.id == current_user_id) %}
                     
                     <div class="bg-white p-6 rounded-xl shadow-sm border {{ 'border-blue-200 ring-1 ring-blue-200' if is_my_patient else 'border-gray-100 opacity-75' }} flex justify-between items-center group relative overflow-hidden transition">
+                        
                         <div class="absolute left-0 top-0 bottom-0 w-1 {{ 'bg-blue-500' if is_my_patient else 'bg-gray-300' }}"></div>
                         
                         <div>
@@ -92,6 +90,7 @@
                             <a href="/doctor/history?ic={{ visit.patient.ic_number }}" class="bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-2 px-4 rounded-lg transition flex items-center gap-2">
                                 <i class="fas fa-history"></i>
                             </a>
+
                             {% if is_my_patient %}
                                 <a href="/start_consultation/{{ visit.id }}" 
                                    class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg shadow-sm transition transform group-hover:translate-x-1">
@@ -112,7 +111,7 @@
             </div>
         </div>
     </main>
-    
+
     <script>
         document.getElementById('status-toggle').addEventListener('change', function() {
             const isOnline = this.checked;

@@ -202,15 +202,66 @@ def start_consultation(visit_id):
         db.session.commit()
     return render_template('consultation.html', visit=visit, patient=visit.patient, doctor_name=session['name'])
 
+#-------------------------------------------DEMO ROUTE-----------------------------------------------------------------------------------------# 
+@app.route('/doctor/demo_session')
+def demo_session():
+    if session.get('role') != 'doctor': return redirect('/login')
+    
+    # Create Fake Data objects that look like real DB objects
+    # This allows us to reuse 'consultation.html' without changes
+    class MockPatient:
+        name = "TEST PATIENT (DEMO)"
+        ic_number = "000000-00-0000"
+        age = "99"
+    
+    class MockVisit:
+        id = "demo"  # String ID to identify demo mode
+        symptoms = "Self-Test Mode: No real patient. Testing microphone and AI transcription."
+    
+    return render_template('consultation.html', 
+                         visit=MockVisit(), 
+                         patient=MockPatient(), 
+                         doctor_name=session['name'])
+
+#Process Audio (demo)
+@app.route('/process_audio', methods=['POST'])
+def process_audio():
+    if 'audio_data' not in request.files:
+        return jsonify({'error': 'No audio file'}), 400
+    
+    audio_file = request.files['audio_data']
+    visit_id = request.form.get('visit_id')
+    
+    # Save file (overwrite demo file if demo)
+    filename = f"visit_{visit_id}.wav"
+    save_path = os.path.join(INSTANCE_FOLDER, filename)
+    audio_file.save(save_path)
+
+    # Mock AI Response (Replace with real AI later)
+    text = "(DEMO) This is a test transcription. The audio was received successfully."
+    soap = "S: Testing\nO: Audio Clear\nA: System Functional\nP: Continue Deployment"
+    
+    return jsonify({'transcription': text, 'soap_note': soap})
+
+# Save Consultation (demo)
 @app.route('/save_consultation', methods=['POST'])
 def save_consultation():
     data = request.json
-    visit = Visit.query.get(data.get('visit_id'))
+    visit_id = data.get('visit_id')
+    
+    # NEW: Handle Demo Mode
+    if visit_id == 'demo':
+        return jsonify({'status': 'success', 'message': 'Demo note processed (not saved to DB)'})
+
+    # Standard Logic
+    visit = Visit.query.get(visit_id)
     if not visit: return jsonify({'error': 'Visit not found'}), 404
     visit.soap_note = data.get('note')
     if data.get('action') == 'finalize': visit.status = 'completed'
     db.session.commit()
     return jsonify({'status': 'success'})
+
+#-----------------------------------------------------------------------------------------------------------------------------#
 
 @app.route('/patient/history/<ic>')
 def get_patient_history(ic):
@@ -220,10 +271,22 @@ def get_patient_history(ic):
     history.reverse()
     return jsonify(history)
 
-@app.route('/process_audio', methods=['POST'])
-def process_audio():
-    # Audio processing logic (Mock or Real)
-    return jsonify({'transcription': "Mock Text", 'soap_note': "Mock Note"})
+#ORIGINAL CONSULTATION (WITHOUT DEMO HANDLING)
+# @app.route('/save_consultation', methods=['POST'])
+# def save_consultation():
+#     data = request.json
+#     visit = Visit.query.get(data.get('visit_id'))
+#     if not visit: return jsonify({'error': 'Visit not found'}), 404
+#     visit.soap_note = data.get('note')
+#     if data.get('action') == 'finalize': visit.status = 'completed'
+#     db.session.commit()
+#     return jsonify({'status': 'success'})
+
+#ORIGINAL AUDIO PROCESS (WITHOUT DEMO HANDLING)
+# @app.route('/process_audio', methods=['POST'])
+# def process_audio():
+#     # Audio processing logic (Mock or Real)
+#     return jsonify({'transcription': "Mock Text", 'soap_note': "Mock Note"})
 
 if __name__ == '__main__':
     with app.app_context():
