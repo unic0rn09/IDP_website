@@ -84,12 +84,77 @@ def logout():
     return redirect('/login')
 
 # --- NURSE ROUTES ---
-@app.route('/nurse/dashboard')
+@app.route('/nurse/dashboard', methods=['GET', 'POST'])
 def nurse_dashboard():
-    if session.get('role') != 'nurse': return redirect('/login')
-    # Show active queue
-    queue = Visit.query.filter(Visit.status.in_(['waiting', 'in_consultation'])).all()
-    return render_template('nurse_dashboard.html', queue=queue)
+    if 'user_id' not in session or session.get('role') != 'nurse':
+        return redirect(url_for('login'))
+
+    found_patient = None # Variable to hold search results
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        # --- ACTION 1: REGISTER NEW PATIENT ---
+        if action == 'register_new':
+            name = request.form['name']
+            ic = request.form['ic']
+            gender = request.form['gender']
+            age = request.form['age']
+            height = request.form['height']
+            weight = request.form['weight']
+            phone = request.form['phone']
+            symptom = request.form['symptom']
+
+            # Check if patient exists
+            if Patient.query.filter_by(ic_number=ic).first():
+                flash('Patient with this IC already exists!', 'error')
+            else:
+                # Create Patient
+                new_patient = Patient(
+                    name=name, ic_number=ic, gender=gender, age=age, 
+                    height=height, weight=weight, phone=phone
+                )
+                db.session.add(new_patient)
+                db.session.flush() # Flush to get the new_patient.id before commit
+
+                # Create Queue Ticket
+                new_queue = Queue(
+                    patient_id=new_patient.id, 
+                    status='Waiting', 
+                    symptom=symptom
+                )
+                db.session.add(new_queue)
+                db.session.commit()
+                flash('New patient registered and added to queue!', 'success')
+
+        # --- ACTION 2: SEARCH EXISTING PATIENT ---
+        elif action == 'search_patient':
+            search_ic = request.form.get('search_ic')
+            found_patient = Patient.query.filter_by(ic_number=search_ic).first()
+            if not found_patient:
+                flash('Patient not found.', 'error')
+            else:
+                flash(f'Patient found: {found_patient.name}', 'success')
+
+        # --- ACTION 3: ADD EXISTING PATIENT TO QUEUE ---
+        elif action == 'add_existing_to_queue':
+            patient_id = request.form.get('patient_id')
+            symptom = request.form.get('symptom')
+            
+            new_queue = Queue(
+                patient_id=patient_id, 
+                status='Waiting', 
+                symptom=symptom
+            )
+            db.session.add(new_queue)
+            db.session.commit()
+            flash('Existing patient added to queue successfully!', 'success')
+            return redirect(url_for('nurse_dashboard')) # Reset search state
+
+    # Fetch current queue for display
+    queue_list = Queue.query.filter_by(status='Waiting').order_by(Queue.queue_time.desc()).all()
+    
+    return render_template('nurse_dashboard.html', queue=queue_list, found_patient=found_patient)
 
 @app.route('/nurse/patient_list')
 def nurse_patient_list():
