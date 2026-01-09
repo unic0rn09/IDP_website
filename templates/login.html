@@ -4,99 +4,150 @@
     <meta charset="UTF-8">
     <title>Medical Scribe Login</title>
     <script src="https://cdn.tailwindcss.com"></script>
+
     <style>
-        /* Smooth fade for the dropdown */
         .fade-in {
             animation: fadeIn 0.3s ease-in-out;
         }
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
+            from { opacity: 0; transform: translateY(-8px); }
             to { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center h-screen">
 
-    <div class="bg-white p-8 rounded-lg shadow-lg w-96">
-        <h2 class="text-2xl font-bold mb-2 text-center text-gray-800">
-            Medical Scribe
-        </h2>
-        <p class="text-center text-gray-400 text-sm mb-6">Secure Login Portal</p>
+<body class="h-screen w-screen overflow-hidden font-sans">
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="mb-4 p-3 rounded text-sm font-bold text-center
-                            {{ 'bg-red-100 text-red-600' if category == 'error' else 'bg-green-100 text-green-600' }}">
-                    {{ message }}
+<div class="flex h-full w-full">
+
+    <!-- LEFT IMAGE / BRANDING -->
+    <div class="hidden md:flex w-1/2 relative">
+        <img
+            src="{{ url_for('static', filename='login_page.png') }}"
+            
+            class="absolute inset-0 w-full h-full object-cover"
+        />
+        <div class="absolute inset-0 bg-black bg-opacity-40"></div>
+
+        <div class="relative z-10 flex flex-col justify-end p-12 text-white">
+            <h1 class="text-3xl font-bold mb-2">
+                Revolutionizing Healthcare Documentation
+            </h1>
+            <p class="text-lg text-gray-200">
+                Powered by MalayaScribe 
+            </p>
+        </div>
+    </div>
+
+    <!-- RIGHT LOGIN SECTION -->
+    <div class="w-full md:w-1/2 flex items-center justify-center bg-white px-6">
+        <div class="w-full max-w-md">
+
+            <!-- Logo / Title -->
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold text-gray-800">MalayaScribe</h2>
+                <p class="text-gray-500 mt-1">Please login to your account</p>
+            </div>
+
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-4 p-3 rounded text-sm font-semibold text-center
+                        {{ 'bg-red-100 text-red-600' if category == 'error'
+                        else 'bg-green-100 text-green-600' }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+            {% endwith %}
+
+            <form method="POST">
+
+                <!-- Role Selector -->
+                <div class="flex bg-gray-100 p-1 rounded-lg mb-6">
+                    <label class="flex-1 text-center cursor-pointer">
+                        <input type="radio" name="role_selector" value="nurse"
+                               class="hidden peer" checked onclick="toggleRoom(false)">
+                        <div class="py-2 rounded-md text-sm font-bold text-gray-500
+                            peer-checked:bg-white peer-checked:text-blue-600 peer-checked:shadow">
+                            I am a Nurse
+                        </div>
+                    </label>
+
+                    <label class="flex-1 text-center cursor-pointer">
+                        <input type="radio" name="role_selector" value="doctor"
+                               class="hidden peer" onclick="toggleRoom(true)">
+                        <div class="py-2 rounded-md text-sm font-bold text-gray-500
+                            peer-checked:bg-white peer-checked:text-blue-600 peer-checked:shadow">
+                            I am a Doctor
+                        </div>
+                    </label>
                 </div>
-            {% endfor %}
-        {% endif %}
-        {% endwith %}
 
-        <form method="POST">
-            <div class="flex bg-gray-100 p-1 rounded-lg mb-6">
-                <label class="flex-1 text-center cursor-pointer">
-                    <input type="radio" name="role_selector" value="nurse" class="hidden peer" checked onclick="toggleRoom(false)">
-                    <div class="py-2 rounded-md text-sm font-bold text-gray-500 transition 
-                                peer-checked:bg-white peer-checked:text-blue-600 peer-checked:shadow-sm">
-                        I am a Nurse
-                    </div>
-                </label>
-                <label class="flex-1 text-center cursor-pointer">
-                    <input type="radio" name="role_selector" value="doctor" class="hidden peer" onclick="toggleRoom(true)">
-                    <div class="py-2 rounded-md text-sm font-bold text-gray-500 transition 
-                                peer-checked:bg-white peer-checked:text-blue-600 peer-checked:shadow-sm">
-                        I am a Doctor
-                    </div>
-                </label>
-            </div>
+                <!-- Email -->
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">
+                        Email
+                    </label>
+                    <input type="email" name="email" required
+                        placeholder="name@hospital.com"
+                        class="w-full p-3 border border-gray-300 rounded-lg
+                        focus:outline-none focus:border-blue-500">
+                </div>
 
-            <div class="mb-4">
-                <label class="block text-sm font-bold text-gray-700 mb-1">Email Address</label>
-                <input type="email" name="email" required placeholder="name@hospital.com"
-                       class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 transition">
-            </div>
+                <!-- Password -->
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">
+                        Password
+                    </label>
+                    <input type="password" name="password" required
+                        placeholder="••••••••"
+                        class="w-full p-3 border border-gray-300 rounded-lg
+                        focus:outline-none focus:border-blue-500">
+                </div>
 
-            <div class="mb-4">
-                <label class="block text-sm font-bold text-gray-700 mb-1">Password</label>
-                <input type="password" name="password" required placeholder="••••••••"
-                       class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 transition">
-            </div>
-
-            <div id="room-container" class="mb-6 hidden">
-                <label class="block text-sm font-bold text-gray-700 mb-1">Select Consultation Room</label>
-                <div class="relative">
-                    <select name="room" class="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:border-blue-500 appearance-none">
+                <!-- Room Selection -->
+                <div id="room-container" class="mb-6 hidden">
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">
+                        Consultation Room
+                    </label>
+                    <select name="room"
+                        class="w-full p-3 border border-gray-300 rounded-lg bg-gray-50">
                         {% for i in range(1, 11) %}
                         <option value="{{ i }}">Consultation Room {{ i }}</option>
                         {% endfor %}
                     </select>
-                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
-                        <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-                    </div>
+                    <p class="text-xs text-gray-400 mt-1">
+                        Marks room as occupied.
+                    </p>
                 </div>
-                <p class="text-xs text-gray-400 mt-1">This will mark the room as "Occupied" in the system.</p>
-            </div>
 
-            <button type="submit"
-                    class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition shadow-md">
-                Login
-            </button>
-        </form>
+                <!-- Login Button -->
+                <button type="submit"
+                    class="w-full bg-purple-600 hover:bg-purple-700
+                    text-white font-bold py-3 rounded-lg transition">
+                    Login
+                </button>
+
+            </form>
+
+        </div>
     </div>
+</div>
 
-    <script>
-        function toggleRoom(isDoctor) {
-            const container = document.getElementById('room-container');
-            if (isDoctor) {
-                container.classList.remove('hidden');
-                container.classList.add('fade-in');
-            } else {
-                container.classList.add('hidden');
-                container.classList.remove('fade-in');
-            }
+<script>
+    function toggleRoom(isDoctor) {
+        const container = document.getElementById('room-container');
+        if (isDoctor) {
+            container.classList.remove('hidden');
+            container.classList.add('fade-in');
+        } else {
+            container.classList.add('hidden');
+            container.classList.remove('fade-in');
         }
-    </script>
+    }
+</script>
+
 </body>
 </html>

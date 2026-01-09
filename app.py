@@ -336,9 +336,75 @@ def get_patient_history(ic):
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-        # Create default users if not exist
-        if not User.query.first():
+        
+        # --- SIMULATION DATA SETUP ---
+        
+        # 1. Create Default Nurse & General Doctor
+        if not User.query.filter_by(email='nurse@test.com').first():
             db.session.add(User(name="Nurse Joy", email='nurse@test.com', password_hash=generate_password_hash('nurse123'), role='nurse'))
+            
+        if not User.query.filter_by(email='doctor@test.com').first():
             db.session.add(User(name="Dr. Strange", email='doctor@test.com', password_hash=generate_password_hash('doctor123'), role='doctor', status='away'))
-            db.session.commit()
+
+        # 2. Simulation: Doctors in specific rooms
+        sim_doctors = [
+            # Room 3 (Occupied with Patient)
+            {'name': 'Dr. Jackson Wang', 'email': 'jacksonwang@hospital.com', 'room': '3', 'status': 'online'},
+            # Room 8 (Occupied with Patient)
+            {'name': 'Dr. Taylor Swift', 'email': 'taylorswift@hospital.com', 'room': '8', 'status': 'online'},
+            # Room 9 (Occupied with Patient)
+            {'name': 'Dr. Aida Alya', 'email': 'aidaalya@hospital.com', 'room': '9', 'status': 'online'},
+            # Room 5 (Doctor Only - No Patient)
+            {'name': 'Dr. Aiman Afiq', 'email': 'aimanafiq@hospital.com', 'room': '5', 'status': 'online'},
+            # Room 10 (Doctor Only - No Patient)
+            {'name': 'Dr. Jayden Lim', 'email': 'lim@hospital.com', 'room': '10', 'status': 'online'},
+        ]
+
+        for doc_data in sim_doctors:
+            if not User.query.filter_by(email=doc_data['email']).first():
+                new_doc = User(
+                    name=doc_data['name'], 
+                    email=doc_data['email'], 
+                    password_hash=generate_password_hash('password'), 
+                    role='doctor', 
+                    status=doc_data['status'],
+                    room=doc_data['room']
+                )
+                db.session.add(new_doc)
+        db.session.commit()
+
+        # 3. Simulation: Patients for Rooms 3, 8, 9
+        sim_patients = [
+            {'name': 'Bambi Lee', 'ic': '120820050506', 'age': '14', 'room': '3'},
+            {'name': 'Nikola Tesla', 'ic': '120920050506', 'age': '14', 'room': '8'},
+            {'name': 'Tong Shen Sheng', 'ic': '05040302010506', 'age': '20', 'room': '9'},
+        ]
+
+        for p_data in sim_patients:
+            # Create Patient if not exists
+            patient = Patient.query.filter_by(ic_number=p_data['ic']).first()
+            if not patient:
+                patient = Patient(name=p_data['name'], ic_number=p_data['ic'], age=p_data['age'])
+                db.session.add(patient)
+                db.session.commit()
+            
+            # Create Active Visit (Marking Room Occupied)
+            # We check if there's already an active visit in this room to avoid duplicates on restart
+            active_visit = Visit.query.filter_by(room=p_data['room'], status='waiting').first()
+            if not active_visit:
+                # Find the doctor for this room to assign correctly
+                room_doc = User.query.filter_by(room=p_data['room'], role='doctor').first()
+                
+                new_visit = Visit(
+                    patient_id=patient.id,
+                    doctor_id=room_doc.id if room_doc else None,
+                    symptoms="Simulation: Severe headache and dizziness.",
+                    status='waiting', # 'waiting' or 'in_consultation' makes it occupied
+                    room=p_data['room']
+                )
+                db.session.add(new_visit)
+        
+        db.session.commit()
+        print(">>> Simulation Data Loaded: Rooms 3, 8, 9 Occupied. Rooms 5, 10 Doctor Ready.")
+
     app.run(debug=True)
