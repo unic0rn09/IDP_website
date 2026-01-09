@@ -276,10 +276,10 @@ def start_consultation(visit_id):
     
     # Assign Doctor ID to visit when they actually start
     visit.doctor_id = session['user_id']
-    
-    if visit.status == 'waiting':
-        visit.status = 'in_consultation'
-        db.session.commit()
+      
+    # Commit the doctor_id assignment
+    db.session.commit()
+
     return render_template('consultation.html', visit=visit, patient=visit.patient, doctor_name=session['name'])
 
 # --- DEMO ROUTES ---
