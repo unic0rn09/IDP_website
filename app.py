@@ -370,13 +370,7 @@ def toggle_status():
     db.session.commit()
     return jsonify({'success': True})
 
-@app.route('/start_consultation/<int:visit_id>')
-def start_consultation(visit_id):
-    if session.get('role') != 'doctor': return redirect('/login')
-    visit = Visit.query.get_or_404(visit_id)
-    visit.doctor_id = session['user_id']
-    db.session.commit()
-    return render_template('consultation.html', visit=visit, patient=visit.patient, doctor_name=session['name'])
+
 
 # --- DEMO ROUTES ---
 @app.route('/doctor/demo_session')
