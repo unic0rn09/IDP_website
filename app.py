@@ -49,65 +49,6 @@ class Visit(db.Model):
     status = db.Column(db.String(20), default='waiting')
     room = db.Column(db.String(10), nullable=True) 
 
-def parse_soap_text(soap_text):
-    """
-    Converts:
-    S: ...
-    O: ...
-    A: ...
-    P: ...
-    into JSON
-    """
-    soap = {
-        "subjective": "",
-        "objective": "",
-        "assessment": "",
-        "plan": ""
-    }
-
-    for line in soap_text.splitlines():
-        line = line.strip()
-        if line.startswith("S:"):
-            soap["subjective"] += line[2:].strip()
-        elif line.startswith("O:"):
-            soap["objective"] += line[2:].strip()
-        elif line.startswith("A:"):
-            soap["assessment"] += line[2:].strip()
-        elif line.startswith("P:"):
-            soap["plan"] += line[2:].strip()
-
-    return soap
-
-
-def validate_soap_json(soap):
-    required = ["subjective", "objective", "assessment", "plan"]
-    return all(k in soap and soap[k].strip() != "" for k in required)
-
-#--------------------------#
-#Integration of AI (SEM 2)
-#--------------------------#
-# def run_asr(audio_path):
-#     """
-#     Placeholder for future ASR integration
-#     """
-#     return "Patient complains of headache and dizziness."
-
-# def run_llm_structuring(transcription):
-#     """
-#     Placeholder for future LLM-based SOAP generation
-#     """
-#     return {
-#         "subjective": "Headache and dizziness for two days",
-#         "objective": "Patient alert, stable vitals",
-#         "assessment": "Suspected migraine",
-#         "plan": "Prescribe analgesics and advise rest"
-#     }
-
-
-
-
-
-
 # --- AUTH ROUTES ---
 @app.route('/')
 def index():
@@ -129,8 +70,8 @@ def login():
                     # Check if ANYONE ELSE is already online in this room
                     occupant = User.query.filter_by(room=selected_room, role='doctor', status='online').first()
                     
-                    # Logic: If occupied AND the occupant is NOT ME -> Block Access
                     if occupant and occupant.id != user.id:
+                        # Conflict Detected!
                         flash(f'ACCESS DENIED: Room {selected_room} is currently occupied by {occupant.name}.', 'error')
                         return render_template('login.html')
 
@@ -370,7 +311,13 @@ def toggle_status():
     db.session.commit()
     return jsonify({'success': True})
 
-
+@app.route('/start_consultation/<int:visit_id>')
+def start_consultation(visit_id):
+    if session.get('role') != 'doctor': return redirect('/login')
+    visit = Visit.query.get_or_404(visit_id)
+    visit.doctor_id = session['user_id']
+    db.session.commit()
+    return render_template('consultation.html', visit=visit, patient=visit.patient, doctor_name=session['name'])
 
 # --- DEMO ROUTES ---
 @app.route('/doctor/demo_session')
@@ -385,103 +332,33 @@ def demo_session():
         symptoms = "Self-Test Mode: No real patient. Testing microphone and AI transcription."
     return render_template('consultation.html', visit=MockVisit(), patient=MockPatient(), doctor_name=session['name'])
 
-# @app.route('/process_audio', methods=['POST'])
-# def process_audio():
-#     if 'audio_data' not in request.files: return jsonify({'error': 'No audio file'}), 400
-#     audio_file = request.files['audio_data']
-#     visit_id = request.form.get('visit_id')
-#     filename = f"visit_{visit_id}.wav"
-#     save_path = os.path.join(INSTANCE_FOLDER, filename)
-#     audio_file.save(save_path)
-#     text = "(DEMO) This is a test transcription. The audio was received successfully."
-#     soap = "S: Testing\nO: Audio Clear\nA: System Functional\nP: Continue Deployment"
-#     return jsonify({'transcription': text, 'soap_note': soap})
-
-@app.route("/process_audio", methods=["POST"])
+@app.route('/process_audio', methods=['POST'])
 def process_audio():
-    audio_file = request.files.get("audio_data")
-    visit_id = request.form.get("visit_id")
-
-    if not audio_file:
-        return jsonify({"error": "No audio received"}), 400
-
-    filename = f"{visit_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.webm"
-    save_path = os.path.join("instance", filename)
+    if 'audio_data' not in request.files: return jsonify({'error': 'No audio file'}), 400
+    audio_file = request.files['audio_data']
+    visit_id = request.form.get('visit_id')
+    filename = f"visit_{visit_id}.wav"
+    save_path = os.path.join(INSTANCE_FOLDER, filename)
     audio_file.save(save_path)
+    text = "(DEMO) This is a test transcription. The audio was received successfully."
+    soap = "S: Testing\nO: Audio Clear\nA: System Functional\nP: Continue Deployment"
+    return jsonify({'transcription': text, 'soap_note': soap})
 
-    # ---- STUB AI OUTPUT (for now) ----
-    transcription = "Simulated English transcription output."
-    soap_json = {
-        "subjective": "Headache and dizziness",
-        "objective": "Patient alert",
-        "assessment": "Suspected migraine",
-        "plan": "Prescribe analgesics"
-    }
-
-    return jsonify({
-        "transcription": transcription,
-        "soap_json": soap_json
-    })
-
-
-# @app.route('/save_consultation', methods=['POST'])
-# def save_consultation():
-#     data = request.json
-#     visit_id = data.get('visit_id')
-#     if visit_id == 'demo': return jsonify({'status': 'success', 'message': 'Demo note processed'})
-    
-#     visit = Visit.query.get(visit_id)
-#     if not visit: return jsonify({'error': 'Visit not found'}), 404
-#     visit.soap_note = data.get('note')
-    
-#     if data.get('action') == 'finalize': 
-#         visit.status = 'completed'
-        
-#     db.session.commit()
-#     return jsonify({'status': 'success'})
 @app.route('/save_consultation', methods=['POST'])
 def save_consultation():
     data = request.json
     visit_id = data.get('visit_id')
-
-    # Demo session handling (unchanged)
-    if visit_id == 'demo':
-        return jsonify({'status': 'success', 'message': 'Demo note processed'})
-
+    if visit_id == 'demo': return jsonify({'status': 'success', 'message': 'Demo note processed'})
+    
     visit = Visit.query.get(visit_id)
-    if not visit:
-        return jsonify({'error': 'Visit not found'}), 404
-
-    # -----------------------------
-    # Extract structured SOAP data
-    # -----------------------------
-    soap_json = data.get('soap')
-    raw_transcription = data.get('raw_transcription', '')
-
-    if not soap_json:
-        return jsonify({'error': 'SOAP data missing'}), 400
-
-    # Optional backend validation (recommended)
-    required_fields = ['subjective', 'objective', 'assessment', 'plan']
-    if not all(soap_json.get(k, '').strip() for k in required_fields):
-        return jsonify({'error': 'Incomplete SOAP note'}), 400
-
-    # -----------------------------
-    # Store consultation data
-    # -----------------------------
-    visit.soap_note_json = json.dumps(soap_json)
-    visit.raw_transcription = raw_transcription
-
-    # -----------------------------
-    # Handle visit lifecycle
-    # -----------------------------
-    if data.get('action') == 'finalize':
+    if not visit: return jsonify({'error': 'Visit not found'}), 404
+    visit.soap_note = data.get('note')
+    
+    if data.get('action') == 'finalize': 
         visit.status = 'completed'
-
+        
     db.session.commit()
-
     return jsonify({'status': 'success'})
-
 
 @app.route('/patient/history/<ic>')
 def get_patient_history(ic):
