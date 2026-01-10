@@ -49,6 +49,65 @@ class Visit(db.Model):
     status = db.Column(db.String(20), default='waiting')
     room = db.Column(db.String(10), nullable=True) 
 
+def parse_soap_text(soap_text):
+    """
+    Converts:
+    S: ...
+    O: ...
+    A: ...
+    P: ...
+    into JSON
+    """
+    soap = {
+        "subjective": "",
+        "objective": "",
+        "assessment": "",
+        "plan": ""
+    }
+
+    for line in soap_text.splitlines():
+        line = line.strip()
+        if line.startswith("S:"):
+            soap["subjective"] += line[2:].strip()
+        elif line.startswith("O:"):
+            soap["objective"] += line[2:].strip()
+        elif line.startswith("A:"):
+            soap["assessment"] += line[2:].strip()
+        elif line.startswith("P:"):
+            soap["plan"] += line[2:].strip()
+
+    return soap
+
+
+def validate_soap_json(soap):
+    required = ["subjective", "objective", "assessment", "plan"]
+    return all(k in soap and soap[k].strip() != "" for k in required)
+
+#--------------------------#
+#Integration of AI (SEM 2)
+#--------------------------#
+# def run_asr(audio_path):
+#     """
+#     Placeholder for future ASR integration
+#     """
+#     return "Patient complains of headache and dizziness."
+
+# def run_llm_structuring(transcription):
+#     """
+#     Placeholder for future LLM-based SOAP generation
+#     """
+#     return {
+#         "subjective": "Headache and dizziness for two days",
+#         "objective": "Patient alert, stable vitals",
+#         "assessment": "Suspected migraine",
+#         "plan": "Prescribe analgesics and advise rest"
+#     }
+
+
+
+
+
+
 # --- AUTH ROUTES ---
 @app.route('/')
 def index():
@@ -61,17 +120,30 @@ def login():
     if request.method == 'POST':
         user = User.query.filter_by(email=request.form['email']).first()
         if user and check_password_hash(user.password_hash, request.form['password']):
+            
+            # --- DOCTOR ROOM CONFLICT CHECK ---
+            if user.role == 'doctor':
+                selected_room = request.form.get('room')
+                
+                if selected_room:
+                    # Check if ANYONE ELSE is already online in this room
+                    occupant = User.query.filter_by(room=selected_room, role='doctor', status='online').first()
+                    
+                    # Logic: If occupied AND the occupant is NOT ME -> Block Access
+                    if occupant and occupant.id != user.id:
+                        flash(f'ACCESS DENIED: Room {selected_room} is currently occupied by {occupant.name}.', 'error')
+                        return render_template('login.html')
+
+                    user.room = selected_room
+                
+                user.status = 'online'
+                db.session.commit()
+            # ----------------------------------
+
             session.permanent = True
             session['user_id'] = user.id
             session['role'] = user.role
             session['name'] = user.name
-            
-            if user.role == 'doctor':
-                user.status = 'online'
-                selected_room = request.form.get('room')
-                if selected_room:
-                    user.room = selected_room
-                db.session.commit()
             
             return redirect('/')
         flash('Invalid credentials', 'error')
@@ -83,7 +155,7 @@ def logout():
         user = User.query.get(session['user_id'])
         if user and user.role == 'doctor':
             user.status = 'away'
-            user.room = None 
+            user.room = None # Clear room on logout so others can use it
             db.session.commit()
     session.clear()
     return redirect('/login')
@@ -101,11 +173,16 @@ def nurse_dashboard():
 
         # === SHARED LOGIC: FIND AVAILABLE ROOM ===
         def find_available_room():
-            # Strategy: Find a room that has NO active visit (waiting or in_consultation)
-            # Simulation Mode: All 10 rooms are "available" if empty, regardless of doctor presence
+            # Strategy: Find a room that has a DOCTOR and NO active visit
             for r in range(1, 11):
                 room_num = str(r)
-                # Check if this room is occupied by a patient
+                
+                # 1. Check if Doctor is ONLINE in this room
+                doctor = User.query.filter_by(role='doctor', room=room_num, status='online').first()
+                if not doctor:
+                    continue 
+                
+                # 2. Check if Room is FREE (no active patient)
                 active_visit = Visit.query.filter(
                     Visit.room == room_num, 
                     Visit.status.in_(['waiting', 'in_consultation'])
@@ -113,7 +190,7 @@ def nurse_dashboard():
                 
                 if not active_visit:
                     return room_num
-            return None # All rooms full
+            return None 
 
         # --- ACTION 1: REGISTER NEW PATIENT ---
         if action == 'register_new':
@@ -129,7 +206,6 @@ def nurse_dashboard():
                 db.session.add(new_patient)
                 db.session.flush()
 
-                # AUTO ASSIGN ROOM
                 assigned_room = find_available_room()
                 visit_status = 'waiting' if assigned_room else 'queued'
                 
@@ -145,24 +221,20 @@ def nurse_dashboard():
                 if assigned_room:
                     flash(f'Patient registered and assigned to Room {assigned_room}!', 'success')
                 else:
-                    flash('Patient registered but all rooms are full. Added to waiting list.', 'warning')
+                    flash('Patient registered. Added to Waiting List (No Available Rooms).', 'warning')
 
         # --- ACTION 2: SEARCH PATIENT ---
         elif action == 'search_patient':
             search_ic = request.form.get('search_ic')
             found_patient = Patient.query.filter_by(ic_number=search_ic).first()
             if not found_patient: flash('Patient not found.', 'error')
-            # Success message is handled in the template now
 
         # --- ACTION 3: ADD EXISTING PATIENT ---
         elif action == 'add_existing_to_queue':
             patient_id = request.form.get('patient_id')
             symptom_text = request.form.get('symptom')
-            
-            # Fetch patient to get name for the flash message
             p_obj = Patient.query.get(patient_id)
 
-            # AUTO ASSIGN ROOM
             assigned_room = find_available_room()
             visit_status = 'waiting' if assigned_room else 'queued'
 
@@ -176,27 +248,23 @@ def nurse_dashboard():
             db.session.commit()
             
             if assigned_room:
-                # UPDATED: Flash message as requested
                 flash(f'{p_obj.name} assigned to Room {assigned_room}', 'success')
             else:
-                flash(f'{p_obj.name} added to waiting list (Rooms Full).', 'warning')
+                flash(f'{p_obj.name} added to Waiting List (No Available Rooms).', 'warning')
             return redirect(url_for('nurse_dashboard'))
 
-    # === PREPARE DASHBOARD DATA (ROOM GRID) ===
+    # === PREPARE DASHBOARD DATA ===
     rooms_data = []
     for i in range(1, 11):
         r_num = str(i)
-        # Find Doctor in this room
         doc = User.query.filter_by(role='doctor', room=r_num, status='online').first()
-        # Find Patient in this room
         visit = Visit.query.filter(
             Visit.room == r_num, 
             Visit.status.in_(['waiting', 'in_consultation'])
         ).first()
         
-        status_color = 'orange' if visit else 'green' # Orange = Occupied, Green = Free
+        status_color = 'orange' if visit else ('green' if doc else 'gray')
         
-        # UPDATED: Added extra patient details for the pop-up
         rooms_data.append({
             'number': r_num,
             'color': status_color,
@@ -209,7 +277,6 @@ def nurse_dashboard():
             'has_doctor': bool(doc)
         })
 
-    # Fetch Waiting List (Patients not assigned to a room yet)
     waiting_list = Visit.query.filter_by(status='queued').order_by(Visit.timestamp.desc()).all()
     
     return render_template('nurse_dashboard.html', rooms=rooms_data, queue=waiting_list, found_patient=found_patient)
@@ -219,16 +286,12 @@ def nurse_dashboard():
 def view_room_details(room_num):
     if session.get('role') != 'nurse': return redirect('/login')
     
-    # 1. Get Doctor Info
     doctor = User.query.filter_by(role='doctor', room=room_num, status='online').first()
-    
-    # 2. Get Active Patient (if any)
     active_visit = Visit.query.filter(
         Visit.room == room_num, 
         Visit.status.in_(['waiting', 'in_consultation'])
     ).first()
 
-    # 3. Get Total Count for this room
     total_patients = 1 if active_visit else 0
     
     return render_template('nurse_room_details.html', 
@@ -283,7 +346,6 @@ def doctor_dashboard():
     doctor = User.query.get(session['user_id'])
     my_room = doctor.room
     
-    # Only show patients assigned to THIS doctor's room
     if my_room:
         queue = Visit.query.filter_by(room=my_room, status='waiting').order_by(Visit.timestamp.asc()).all()
     else:
@@ -312,13 +374,8 @@ def toggle_status():
 def start_consultation(visit_id):
     if session.get('role') != 'doctor': return redirect('/login')
     visit = Visit.query.get_or_404(visit_id)
-    
-    # Assign Doctor ID to visit when they actually start
     visit.doctor_id = session['user_id']
-      
-    # Commit the doctor_id assignment
     db.session.commit()
-
     return render_template('consultation.html', visit=visit, patient=visit.patient, doctor_name=session['name'])
 
 # --- DEMO ROUTES ---
@@ -334,35 +391,103 @@ def demo_session():
         symptoms = "Self-Test Mode: No real patient. Testing microphone and AI transcription."
     return render_template('consultation.html', visit=MockVisit(), patient=MockPatient(), doctor_name=session['name'])
 
-@app.route('/process_audio', methods=['POST'])
-def process_audio():
-    if 'audio_data' not in request.files: return jsonify({'error': 'No audio file'}), 400
-    audio_file = request.files['audio_data']
-    visit_id = request.form.get('visit_id')
-    filename = f"visit_{visit_id}.wav"
-    save_path = os.path.join(INSTANCE_FOLDER, filename)
-    audio_file.save(save_path)
-    text = "(DEMO) This is a test transcription. The audio was received successfully."
-    soap = "S: Testing\nO: Audio Clear\nA: System Functional\nP: Continue Deployment"
-    return jsonify({'transcription': text, 'soap_note': soap})
+# @app.route('/process_audio', methods=['POST'])
+# def process_audio():
+#     if 'audio_data' not in request.files: return jsonify({'error': 'No audio file'}), 400
+#     audio_file = request.files['audio_data']
+#     visit_id = request.form.get('visit_id')
+#     filename = f"visit_{visit_id}.wav"
+#     save_path = os.path.join(INSTANCE_FOLDER, filename)
+#     audio_file.save(save_path)
+#     text = "(DEMO) This is a test transcription. The audio was received successfully."
+#     soap = "S: Testing\nO: Audio Clear\nA: System Functional\nP: Continue Deployment"
+#     return jsonify({'transcription': text, 'soap_note': soap})
 
+@app.route("/process_audio", methods=["POST"])
+def process_audio():
+    audio_file = request.files.get("audio_data")
+    visit_id = request.form.get("visit_id")
+
+    if not audio_file:
+        return jsonify({"error": "No audio received"}), 400
+
+    filename = f"{visit_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.webm"
+    save_path = os.path.join("instance", filename)
+    audio_file.save(save_path)
+
+    # ---- STUB AI OUTPUT (for now) ----
+    transcription = "Simulated English transcription output."
+    soap_json = {
+        "subjective": "Headache and dizziness",
+        "objective": "Patient alert",
+        "assessment": "Suspected migraine",
+        "plan": "Prescribe analgesics"
+    }
+
+    return jsonify({
+        "transcription": transcription,
+        "soap_json": soap_json
+    })
+
+
+# @app.route('/save_consultation', methods=['POST'])
+# def save_consultation():
+#     data = request.json
+#     visit_id = data.get('visit_id')
+#     if visit_id == 'demo': return jsonify({'status': 'success', 'message': 'Demo note processed'})
+    
+#     visit = Visit.query.get(visit_id)
+#     if not visit: return jsonify({'error': 'Visit not found'}), 404
+#     visit.soap_note = data.get('note')
+    
+#     if data.get('action') == 'finalize': 
+#         visit.status = 'completed'
+        
+#     db.session.commit()
+#     return jsonify({'status': 'success'})
 @app.route('/save_consultation', methods=['POST'])
 def save_consultation():
     data = request.json
     visit_id = data.get('visit_id')
-    if visit_id == 'demo': return jsonify({'status': 'success', 'message': 'Demo note processed'})
-    
+
+    # Demo session handling (unchanged)
+    if visit_id == 'demo':
+        return jsonify({'status': 'success', 'message': 'Demo note processed'})
+
     visit = Visit.query.get(visit_id)
-    if not visit: return jsonify({'error': 'Visit not found'}), 404
-    visit.soap_note = data.get('note')
-    
-    # When completed, free up the room!
-    if data.get('action') == 'finalize': 
+    if not visit:
+        return jsonify({'error': 'Visit not found'}), 404
+
+    # -----------------------------
+    # Extract structured SOAP data
+    # -----------------------------
+    soap_json = data.get('soap')
+    raw_transcription = data.get('raw_transcription', '')
+
+    if not soap_json:
+        return jsonify({'error': 'SOAP data missing'}), 400
+
+    # Optional backend validation (recommended)
+    required_fields = ['subjective', 'objective', 'assessment', 'plan']
+    if not all(soap_json.get(k, '').strip() for k in required_fields):
+        return jsonify({'error': 'Incomplete SOAP note'}), 400
+
+    # -----------------------------
+    # Store consultation data
+    # -----------------------------
+    visit.soap_note_json = json.dumps(soap_json)
+    visit.raw_transcription = raw_transcription
+
+    # -----------------------------
+    # Handle visit lifecycle
+    # -----------------------------
+    if data.get('action') == 'finalize':
         visit.status = 'completed'
-        # room logic is handled by 'status' check in dashboard (completed visits don't block rooms)
-        
+
     db.session.commit()
+
     return jsonify({'status': 'success'})
+
 
 @app.route('/patient/history/<ic>')
 def get_patient_history(ic):
@@ -380,23 +505,22 @@ if __name__ == '__main__':
         if not User.query.filter_by(email='nurse@test.com').first():
             db.session.add(User(name="Nurse Joy", email='nurse@test.com', password_hash=generate_password_hash('nurse123'), role='nurse'))
             
-        # 2. Create Dr. Strange (ROOM 1, ONLINE) - AS REQUESTED
+        # 2. Create Dr. Strange (ROOM 1, ONLINE)
         if not User.query.filter_by(email='doctor@test.com').first():
             db.session.add(User(name="Dr. Strange", email='doctor@test.com', password_hash=generate_password_hash('doctor123'), role='doctor', status='online', room='1'))
         else:
-            # Ensure he is online and in Room 1 if he already exists
             dr = User.query.filter_by(email='doctor@test.com').first()
             dr.status = 'online'
             dr.room = '1'
             db.session.add(dr)
 
-        # 3. Create Other Doctors
+        # 3. Create Other Doctors with UNIQUE CREDENTIALS
         sim_doctors = [
-            {'name': 'Dr. Jackson Wang', 'email': 'jacksonwang@hospital.com', 'room': '3', 'status': 'online'},
-            {'name': 'Dr. Taylor Swift', 'email': 'taylorswift@hospital.com', 'room': '8', 'status': 'online'},
-            {'name': 'Dr. Aida Alya', 'email': 'aidaalya@hospital.com', 'room': '9', 'status': 'online'},
-            {'name': 'Dr. Aiman Afiq', 'email': 'aimanafiq@hospital.com', 'room': '5', 'status': 'online'},
-            {'name': 'Dr. Jayden Lim', 'email': 'lim@hospital.com', 'room': '10', 'status': 'online'},
+            {'name': 'Dr. Jackson Wang', 'email': 'jackson@hospital.com', 'password': 'jackson123', 'room': '3'},
+            {'name': 'Dr. Taylor Swift', 'email': 'taylor@hospital.com',  'password': 'taylor123',  'room': '8'},
+            {'name': 'Dr. Aida Alya',    'email': 'aida@hospital.com',    'password': 'aida123',    'room': '9'},
+            {'name': 'Dr. Aiman Afiq',   'email': 'aiman@hospital.com',   'password': 'aiman123',   'room': '5'},
+            {'name': 'Dr. Jayden Lim',   'email': 'jayden@hospital.com',  'password': 'jayden123',  'room': '10'},
         ]
 
         for doc_data in sim_doctors:
@@ -404,17 +528,20 @@ if __name__ == '__main__':
                 new_doc = User(
                     name=doc_data['name'], 
                     email=doc_data['email'], 
-                    password_hash=generate_password_hash('password'), 
+                    password_hash=generate_password_hash(doc_data['password']), 
                     role='doctor', 
-                    status=doc_data['status'],
+                    status='online',
                     room=doc_data['room']
                 )
                 db.session.add(new_doc)
         db.session.commit()
 
-        # 4. Create Simulated Patients (Restored)
-        # Note: We do NOT put a patient in Room 1 so you can test assigning one to Dr. Strange.
+        # 4. Create Simulated Patients
         sim_patients = [
+            # PRESENTATION PATIENT FOR DR STRANGE (ROOM 1)
+            {'name': 'Presentation Demo Patient', 'ic': '999999-01-0001', 'age': '30', 'room': '1'},
+            
+            # PATIENTS FOR SIMULATED DOCTORS
             {'name': 'Bambi Lee', 'ic': '120820050506', 'age': '14', 'room': '3'},
             {'name': 'Nikola Tesla', 'ic': '120920050506', 'age': '14', 'room': '8'},
             {'name': 'Tong Shen Sheng', 'ic': '05040302010506', 'age': '20', 'room': '9'},
@@ -441,6 +568,6 @@ if __name__ == '__main__':
                 db.session.add(new_visit)
         
         db.session.commit()
-        print(">>> Simulation Data Loaded. Dr. Strange is ready in Room 1.")
+        print(">>> Simulation Data Loaded. All Doctors and Patients ready.")
 
     app.run(debug=True)

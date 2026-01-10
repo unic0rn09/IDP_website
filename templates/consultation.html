@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Consultation</title>
+    <title>Consultation | EMMAS</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
     <style>
-        /* Base style for bars */
         .waveform-bar { 
             width: 6px; 
             background-color: #60a5fa; 
@@ -16,270 +16,296 @@
         }
     </style>
 </head>
+
 <body class="bg-gray-50 h-screen flex overflow-hidden font-sans">
 
-    <aside class="w-80 bg-white border-r border-gray-200 flex flex-col justify-between hidden md:flex">
-        <div class="flex-1 flex flex-col overflow-hidden">
-            <div class="p-6">
-                <div class="font-bold text-gray-700 text-lg mb-4">History: {{ patient.name }}</div>
-                <div class="text-xs text-gray-400 mb-2">IC: {{ patient.ic_number }}</div>
-                <button onclick="loadHistory()" class="text-sm text-blue-600 hover:underline mb-4"><i class="fas fa-sync"></i> Refresh History</button>
+<!-- ================= LEFT HISTORY ================= -->
+<aside class="w-80 bg-white border-r border-gray-200 flex flex-col justify-between hidden md:flex">
+    <div class="flex-1 overflow-hidden">
+        <div class="p-6">
+            <div class="font-bold text-gray-700 text-lg mb-4">
+                History: {{ patient.name }}
             </div>
-            
-            <div id="history-list" class="flex-1 overflow-y-auto px-6 pb-6 space-y-4">
-                <div class="text-center text-gray-400 text-sm mt-4">Loading history...</div>
-            </div>
+            <div class="text-xs text-gray-400 mb-2">IC: {{ patient.ic_number }}</div>
+            <button onclick="loadHistory()" class="text-sm text-blue-600 hover:underline">
+                <i class="fas fa-sync"></i> Refresh History
+            </button>
         </div>
-        
-        <div class="p-4 border-t border-gray-100">
-            <a href="/doctor/dashboard" class="flex items-center gap-2 text-gray-600 hover:text-blue-600">
-                <i class="fas fa-arrow-left"></i> Back to Queue
-            </a>
+        <div id="history-list" class="flex-1 overflow-y-auto px-6 pb-6 space-y-4"></div>
+    </div>
+    <div class="p-4 border-t">
+        <a href="/doctor/dashboard" class="flex items-center gap-2 text-gray-600 hover:text-blue-600">
+            <i class="fas fa-arrow-left"></i> Back to Queue
+        </a>
+    </div>
+</aside>
+
+<!-- ================= MAIN ================= -->
+<main class="flex-1 flex flex-col">
+
+<header class="h-16 bg-white border-b flex items-center px-8">
+    <h1 class="text-xl font-bold text-gray-800">Current Visit Session</h1>
+</header>
+
+<div class="flex-1 overflow-y-auto p-8">
+
+<!-- ================= SETUP ================= -->
+<div id="view-setup" class="max-w-3xl mx-auto space-y-6">
+    <div class="bg-blue-50 p-6 rounded-lg border">
+        <h2 class="font-bold text-blue-900 mb-2">Visit Context (Symptoms)</h2>
+        <p class="text-blue-800">{{ visit.symptoms }}</p>
+    </div>
+    <button onclick="startSession()"
+        class="w-full bg-[#2a9d8f] hover:bg-[#21867a] text-white font-bold py-4 rounded-full shadow-lg text-lg">
+        <i class="fas fa-microphone mr-2"></i> START RECORDING
+    </button>
+</div>
+
+<!-- ================= RECORDING ================= -->
+<div id="view-recording" class="hidden max-w-3xl mx-auto space-y-6">
+    <div class="bg-white p-8 rounded-2xl border text-center space-y-6">
+        <button onclick="togglePause()" id="pauseBtn"
+            class="w-full bg-blue-500 text-white py-4 rounded-full font-bold">
+            PAUSE
+        </button>
+
+        <div class="flex justify-between items-center px-4">
+            <span id="timer" class="text-2xl font-mono">00:00</span>
+            <span class="bg-green-100 text-green-700 text-xs font-bold px-3 py-1 rounded-full animate-pulse">
+                Live Audio
+            </span>
         </div>
-    </aside>
 
-    <main class="flex-1 flex flex-col relative">
-        <header class="h-16 border-b border-gray-200 bg-white flex items-center px-8 justify-between shrink-0">
-            <h1 class="text-xl font-bold text-gray-800">Current Visit Session</h1>
-        </header>
+        <div id="waveform" class="h-16 bg-gray-50 rounded-lg flex gap-1 px-4"></div>
+    </div>
 
-        <div class="flex-1 overflow-y-auto p-8">
-            
-            <div id="view-setup" class="max-w-3xl mx-auto space-y-6">
-                <div class="bg-blue-50 p-6 rounded-lg border border-blue-100">
-                    <h2 class="font-bold text-blue-900 mb-2">Visit Context (Symptoms)</h2>
-                    <p class="text-blue-800">{{ visit.symptoms }}</p>
-                </div>
-                <button onclick="startSession()" class="w-full bg-[#2a9d8f] hover:bg-[#21867a] text-white font-bold py-4 rounded-full shadow-lg text-lg transition">
-                    <i class="fas fa-microphone mr-2"></i> START RECORDING
-                </button>
-            </div>
+    <button onclick="processTranscription()"
+        class="w-full bg-gray-200 py-3 rounded-lg font-bold">
+        STOP & PROCESS
+    </button>
+</div>
 
-            <div id="view-recording" class="max-w-3xl mx-auto space-y-6 hidden">
-                <div class="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm text-center space-y-6">
-                    <button onclick="togglePause()" id="pauseBtn" class="w-full bg-[#3b82f6] hover:bg-blue-600 text-white font-bold py-4 rounded-full shadow-lg text-lg transition">PAUSE</button>
-                    <div class="flex justify-between items-center px-4">
-                        <span id="timer" class="text-2xl font-bold font-mono text-gray-800">00:00</span>
-                        <span class="bg-green-100 text-green-700 text-xs font-bold px-3 py-1 rounded-full animate-pulse">Live Audio</span>
-                    </div>
-                    <div id="waveform" class="h-16 bg-gray-50 rounded-lg flex items-center justify-center gap-1 px-4 overflow-hidden">
-                    </div>
-                </div>
+<!-- ================= RESULTS (NEW) ================= -->
+<div id="view-results" class="hidden grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-                <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-                    <h3 class="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                        <i class="fas fa-closed-captioning text-blue-500"></i> Transcription
-                    </h3>
-                    <div id="realtime-transcription" class="h-40 bg-gray-50 rounded-lg p-4 text-gray-600 text-sm overflow-y-auto border border-gray-100 font-mono leading-relaxed">
-                        <span class="italic text-gray-400">Live transcription text will appear here...</span>
-                    </div>
-                </div>
-                <button onclick="processTranscription()" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 rounded-lg transition">STOP & PROCESS</button>
-            </div>
+<!-- Raw Transcription -->
+<div class="bg-white p-5 rounded-xl border">
+    <h3 class="font-bold mb-2">Raw Transcription (Verbatim)</h3>
+    <div id="transcription-text"
+         class="h-96 overflow-y-auto border rounded-lg p-4 text-sm bg-gray-50"></div>
+</div>
 
-            <div id="view-results" class="hidden h-full flex flex-col md:flex-row gap-6">
-                <div class="md:w-1/3 flex flex-col gap-2">
-                    <h3 class="font-bold text-gray-800">Transcription</h3>
-                    <div id="transcription-text" class="bg-white border p-4 rounded-lg h-96 overflow-y-auto text-sm"></div>
-                </div>
-                <div class="md:w-2/3 flex flex-col gap-2">
-                    <h3 class="font-bold text-gray-800">Clinical Note</h3>
-                    <textarea id="soap-note" class="w-full h-80 p-4 border rounded-lg resize-none"></textarea>
-                    <div class="flex gap-4">
-                        <button onclick="saveData('draft')" class="flex-1 border py-3 rounded font-bold">Save Draft</button>
-                        <button onclick="saveData('finalize')" class="flex-1 bg-[#2a9d8f] text-white py-3 rounded font-bold">Finalize & Sign</button>
-                    </div>
-                </div>
-            </div>
+<!-- SOAP -->
+<div class="bg-white p-5 rounded-xl border">
 
-        </div>
-    </main>
+<div class="bg-blue-50 border p-3 rounded-lg mb-4 flex gap-3">
+    <i class="fas fa-robot text-blue-600"></i>
+    <div>
+        <div class="font-bold text-blue-800 text-sm">AI-Generated Clinical Note</div>
+        <div class="text-xs text-blue-600">Editable before finalisation</div>
+    </div>
+</div>
 
-    <script>
-        // --- VARIABLES ---
-        const patientIC = "{{ patient.ic_number }}";
-        const visitID = "{{ visit.id }}";
-        let mediaRecorder;
-        let audioChunks = [];
-        let timerInterval;
-        let seconds = 0;
-        let isPaused = false;
-        
-        // Audio Visualization Vars
-        let audioContext;
-        let analyser;
-        let dataArray;
-        let animationId;
-        const barCount = 40;
-        const waveContainer = document.getElementById('waveform');
-        const bars = [];
+<div class="space-y-3">
+    <label class="text-xs font-bold text-blue-600">SUBJECTIVE</label>
+    <textarea id="soap-s" class="w-full p-3 border rounded-lg h-20"></textarea>
 
-        // --- INITIALIZATION ---
-        // Create 40 bars for visualizer
-        for(let i=0; i<barCount; i++) { 
-            const bar = document.createElement('div'); 
-            bar.className = 'waveform-bar'; 
-            waveContainer.appendChild(bar); 
-            bars.push(bar);
+    <label class="text-xs font-bold text-blue-600">OBJECTIVE</label>
+    <textarea id="soap-o" class="w-full p-3 border rounded-lg h-20"></textarea>
+
+    <label class="text-xs font-bold text-blue-600">ASSESSMENT</label>
+    <textarea id="soap-a" class="w-full p-3 border rounded-lg h-20"></textarea>
+
+    <label class="text-xs font-bold text-blue-600">PLAN</label>
+    <textarea id="soap-p" class="w-full p-3 border rounded-lg h-20"></textarea>
+</div>
+
+<div class="flex gap-4 mt-6">
+    <button onclick="saveData('draft')" class="flex-1 border py-3 rounded font-bold">
+        Save Draft
+    </button>
+    <button onclick="saveData('finalize')" class="flex-1 bg-[#2a9d8f] text-white py-3 rounded font-bold">
+        Finalize & Sign
+    </button>
+</div>
+
+</div>
+</div>
+
+</div>
+</main>
+
+<!-- ================= SCRIPT ================= -->
+
+<script>
+const visitID = "{{ visit.id }}";
+let mediaRecorder, audioChunks = [];
+let seconds = 0, timerInterval, isPaused = false;
+
+// ---------------- VISUALIZER GLOBALS ----------------
+const barCount = 40;
+const bars = [];
+const waveContainer = document.getElementById("waveform");
+
+// Create bars once
+for (let i = 0; i < barCount; i++) {
+    const bar = document.createElement("div");
+    bar.className = "waveform-bar";
+    waveContainer.appendChild(bar);
+    bars.push(bar);
+}
+
+
+// Visualizer
+let audioContext, analyser, dataArray, animationId;
+function setupVisualizer(stream) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const source = audioContext.createMediaStreamSource(stream);
+
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 64;
+
+    source.connect(analyser);
+
+    const bufferLength = analyser.frequencyBinCount;
+    dataArray = new Uint8Array(bufferLength);
+
+    function animate() {
+        analyser.getByteFrequencyData(dataArray);
+        for (let i = 0; i < bars.length; i++) {
+            const value = dataArray[i % bufferLength] || 0;
+            const height = Math.max(5, (value / 255) * 40);
+            bars[i].style.height = `${height}px`;
         }
-        
-        loadHistory();
+        animationId = requestAnimationFrame(animate);
+    }
+    animate();
+}
 
-        // --- HISTORY FETCH ---
-        function loadHistory() {
-            if(!patientIC) return;
-            fetch('/patient/history/' + patientIC)
-            .then(r => r.json())
-            .then(data => {
-                const container = document.getElementById('history-list');
-                container.innerHTML = '';
-                if(data.length === 0) container.innerHTML = '<div class="text-gray-400 text-center text-sm">No previous history.</div>';
-                
-                data.forEach(v => {
-                    const item = document.createElement('div');
-                    item.className = 'bg-gray-50 p-3 rounded border border-gray-200 text-sm';
-                    item.innerHTML = `
-                        <div class="flex justify-between">
-                            <span class="font-bold text-gray-700">${v.date}</span>
-                            <span class="text-[10px] uppercase bg-gray-200 px-1 rounded">${v.status}</span>
-                        </div>
-                        <div class="text-gray-600 mb-2 italic">"${v.symptoms}"</div>
-                        <div class="text-xs text-gray-500 border-t pt-2">${v.note ? v.note.substring(0, 100) + '...' : 'No notes'}</div>
-                    `;
-                    container.appendChild(item);
-                });
+function stopVisualizer() {
+    if (audioContext) {
+        audioContext.close();
+        audioContext = null;
+    }
+    cancelAnimationFrame(animationId);
+}
+
+
+for(let i=0;i<barCount;i++){
+    const b=document.createElement("div");
+    b.className="waveform-bar";
+    waveContainer.appendChild(b);
+    bars.push(b);
+}
+
+async function startSession() {
+    try {
+        // 1️⃣ Permission popup happens HERE
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+        // 2️⃣ MediaRecorder setup (NO forced mimeType)
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+
+        mediaRecorder.onstop = () => {
+            // 3️⃣ Use browser-native format (WebM / OGG)
+            const audioBlob = new Blob(audioChunks, {
+                type: mediaRecorder.mimeType
             });
-        }
 
-        // --- START SESSION & AUDIO VISUALIZER ---
-        async function startSession() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                
-                // 1. Setup Recorder
-                mediaRecorder = new MediaRecorder(stream);
-                audioChunks = [];
-                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-                mediaRecorder.onstop = () => {
-                    const blob = new Blob(audioChunks, { type: 'audio/wav' });
-                    sendAudio(blob);
-                    stopVisualizer(); // Stop animation
-                };
-                mediaRecorder.start();
+            sendAudio(audioBlob);
 
-                // 2. Setup Visualizer (Real-time Audio Graph)
-                setupVisualizer(stream);
+            // 4️⃣ VERY IMPORTANT: release microphone
+            stream.getTracks().forEach(track => track.stop());
+            stopVisualizer();
+        };
 
-                // 3. UI Updates
-                document.getElementById('view-setup').classList.add('hidden');
-                document.getElementById('view-recording').classList.remove('hidden');
-                
-                timerInterval = setInterval(() => { 
-                    if(!isPaused) { 
-                        seconds++; 
-                        const m = Math.floor(seconds/60).toString().padStart(2,'0'); 
-                        const s = (seconds%60).toString().padStart(2,'0');
-                        document.getElementById('timer').innerText = `${m}:${s}`; 
-                    }
-                }, 1000);
+        mediaRecorder.start();
 
-            } catch(e) { 
-                console.error(e);
-                alert("Microphone access denied. Please allow microphone access."); 
+        // 5️⃣ Visualizer (optional but OK)
+        setupVisualizer(stream);
+
+        // 6️⃣ UI state change
+        document.getElementById("view-setup").classList.add("hidden");
+        document.getElementById("view-recording").classList.remove("hidden");
+
+        // 7️⃣ Timer
+        timerInterval = setInterval(() => {
+            if (!isPaused) {
+                seconds++;
+                document.getElementById("timer").innerText =
+                    `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
             }
-        }
+        }, 1000);
 
-        function setupVisualizer(stream) {
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const source = audioContext.createMediaStreamSource(stream);
-            analyser = audioContext.createAnalyser();
-            analyser.fftSize = 64; // Low detail for performance (32 data points)
-            source.connect(analyser);
-            
-            const bufferLength = analyser.frequencyBinCount;
-            dataArray = new Uint8Array(bufferLength);
+    } catch (err) {
+        console.error("Microphone permission error:", err);
+        alert("Microphone access failed: " + err.name);
+    }
+}
 
-            function animate() {
-                if(isPaused) return; // Stop updating if paused
-                
-                analyser.getByteFrequencyData(dataArray);
-                
-                // Map frequency data to our 40 bars
-                for (let i = 0; i < barCount; i++) {
-                    const value = dataArray[i % bufferLength] || 0;
-                    const height = Math.max(5, (value / 255) * 40); // Max height 40px
-                    bars[i].style.height = `${height}px`;
-                }
-                animationId = requestAnimationFrame(animate);
+function processTranscription(){
+    mediaRecorder.stop();
+    clearInterval(timerInterval);
+}
+
+function sendAudio(blob) {
+    const formData = new FormData();
+    formData.append("audio_data", blob, "recording.webm");
+    formData.append("visit_id", visitID);
+
+    fetch("/process_audio", {
+        method: "POST",
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        document.getElementById("view-recording").classList.add("hidden");
+        document.getElementById("view-results").classList.remove("hidden");
+
+        document.getElementById("transcription-text").innerText = data.transcription;
+        document.getElementById("soap-s").value = data.soap_json.subjective;
+        document.getElementById("soap-o").value = data.soap_json.objective;
+        document.getElementById("soap-a").value = data.soap_json.assessment;
+        document.getElementById("soap-p").value = data.soap_json.plan;
+    });
+}
+function togglePause(){
+    if(isPaused){
+        mediaRecorder.resume();
+        document.getElementById("pauseBtn").innerText="PAUSE";
+    }else{
+        mediaRecorder.pause();
+        document.getElementById("pauseBtn").innerText="RESUME";
+    }
+    isPaused = !isPaused;
+}
+function saveData(action){
+    fetch("/save_consultation",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+            visit_id:visitID,
+            action:action,
+            raw_transcription:document.getElementById("transcription-text").innerText,
+            soap:{
+                subjective:soap-s.value,
+                objective:soap-o.value,
+                assessment:soap-a.value,
+                plan:soap-p.value
             }
-            animate();
+        })
+    }).then(()=>{
+        if(action==="finalize"){
+            window.location.href="/doctor/dashboard";
+        }else{
+            alert("Draft saved");
         }
+    });
+}
+</script>
 
-        function stopVisualizer() {
-            if(audioContext) audioContext.close();
-            cancelAnimationFrame(animationId);
-        }
-
-        function togglePause() {
-            if(!mediaRecorder) return;
-            isPaused = !isPaused;
-            if(isPaused) { 
-                mediaRecorder.pause(); 
-                document.getElementById('pauseBtn').innerText = "RESUME";
-                cancelAnimationFrame(animationId); // Pause visualizer
-            }
-            else { 
-                mediaRecorder.resume(); 
-                document.getElementById('pauseBtn').innerText = "PAUSE";
-                requestAnimationFrame(function resumeAnim() { // Resume visualizer
-                     if(isPaused) return;
-                     analyser.getByteFrequencyData(dataArray);
-                     for (let i = 0; i < barCount; i++) {
-                        const value = dataArray[i % dataArray.length] || 0;
-                        const height = Math.max(5, (value / 255) * 40);
-                        bars[i].style.height = `${height}px`;
-                     }
-                     animationId = requestAnimationFrame(resumeAnim);
-                });
-            }
-        }
-
-        function processTranscription() {
-            mediaRecorder.stop();
-            clearInterval(timerInterval);
-            document.getElementById('view-recording').innerHTML = '<div class="text-center p-10 font-bold text-gray-600"><i class="fas fa-circle-notch fa-spin text-blue-500 text-3xl mb-4"></i><br>Processing AI Transcription...</div>';
-        }
-
-        function sendAudio(blob) {
-            const formData = new FormData();
-            formData.append("audio_data", blob, "rec.wav");
-            formData.append("visit_id", visitID);
-
-            fetch('/process_audio', { method: 'POST', body: formData })
-            .then(r => r.json())
-            .then(data => {
-                document.getElementById('view-recording').classList.add('hidden');
-                document.getElementById('view-results').classList.remove('hidden');
-                document.getElementById('transcription-text').innerText = data.transcription;
-                document.getElementById('soap-note').value = data.soap_note;
-            });
-        }
-
-        function saveData(action) {
-            const note = document.getElementById('soap-note').value;
-            fetch('/save_consultation', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ visit_id: visitID, note: note, action: action })
-            })
-            .then(() => {
-                if(action === 'finalize') {
-                    alert('Session Completed & Signed!');
-                    window.location.href = '/doctor/dashboard';
-                }
-                else alert('Draft Saved');
-            });
-        }
-    </script>
 </body>
 </html>
