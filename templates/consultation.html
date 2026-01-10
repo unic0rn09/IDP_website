@@ -63,7 +63,16 @@
                         <span class="bg-green-100 text-green-700 text-xs font-bold px-3 py-1 rounded-full animate-pulse">Live Audio</span>
                     </div>
                     <div id="waveform" class="h-16 bg-gray-50 rounded-lg flex items-center justify-center gap-1 px-4 overflow-hidden">
-                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+                    <h3 class="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                        <i class="fas fa-closed-captioning text-blue-500"></i> Transcription
+                    </h3>
+                    <div id="realtime-transcription" class="h-40 bg-gray-50 rounded-lg p-4 text-gray-600 text-sm overflow-y-auto border border-gray-100 font-mono leading-relaxed">
+                        <span class="italic text-gray-400">Live transcription text will appear here...</span>
+                    </div>
                 </div>
                 <button onclick="processTranscription()" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 rounded-lg transition">STOP & PROCESS</button>
             </div>
@@ -127,7 +136,6 @@
                 if(data.length === 0) container.innerHTML = '<div class="text-gray-400 text-center text-sm">No previous history.</div>';
                 
                 data.forEach(v => {
-                    // Only show completed or relevant visits if desired, currently showing all
                     const item = document.createElement('div');
                     item.className = 'bg-gray-50 p-3 rounded border border-gray-200 text-sm';
                     item.innerHTML = `
@@ -198,7 +206,6 @@
                 
                 // Map frequency data to our 40 bars
                 for (let i = 0; i < barCount; i++) {
-                    // Simple mapping logic: use the first ~20 frequencies repeatedly
                     const value = dataArray[i % bufferLength] || 0;
                     const height = Math.max(5, (value / 255) * 40); // Max height 40px
                     bars[i].style.height = `${height}px`;
