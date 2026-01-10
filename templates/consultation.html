@@ -2,310 +2,233 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Consultation | EMMAS</title>
+    <title>Consultation Session</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-
     <style>
-        .waveform-bar { 
-            width: 6px; 
-            background-color: #60a5fa; 
-            border-radius: 99px; 
-            height: 5px; 
-            transition: height 0.05s ease;
-        }
+        @keyframes pulse-ring { 0% { transform: scale(0.8); opacity: 0.5; } 100% { transform: scale(1.3); opacity: 0; } }
+        .recording-pulse { animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite; }
+        /* Countdown Overlay */
+        #countdown-overlay { display: none; background: rgba(0,0,0,0.8); position: fixed; inset: 0; z-index: 50; justify-content: center; align-items: center; color: white; font-size: 8rem; font-weight: bold; }
     </style>
 </head>
+<body class="bg-gray-100 h-screen flex flex-col font-sans">
 
-<body class="bg-gray-50 h-screen flex overflow-hidden font-sans">
+    <div id="countdown-overlay">3</div>
 
-<!-- ================= LEFT HISTORY ================= -->
-<aside class="w-80 bg-white border-r border-gray-200 flex flex-col justify-between hidden md:flex">
-    <div class="flex-1 overflow-hidden">
-        <div class="p-6">
-            <div class="font-bold text-gray-700 text-lg mb-4">
-                History: {{ patient.name }}
+    <header class="bg-white border-b border-gray-200 px-8 py-4 flex justify-between items-center shadow-sm">
+        <div class="flex items-center gap-4">
+            <div class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">Dr</div>
+            <div>
+                <h1 class="font-bold text-gray-800">Consultation Session</h1>
+                <p class="text-xs text-gray-500">Dr. {{ doctor_name }}</p>
             </div>
-            <div class="text-xs text-gray-400 mb-2">IC: {{ patient.ic_number }}</div>
-            <button onclick="loadHistory()" class="text-sm text-blue-600 hover:underline">
-                <i class="fas fa-sync"></i> Refresh History
-            </button>
         </div>
-        <div id="history-list" class="flex-1 overflow-y-auto px-6 pb-6 space-y-4"></div>
-    </div>
-    <div class="p-4 border-t">
-        <a href="/doctor/dashboard" class="flex items-center gap-2 text-gray-600 hover:text-blue-600">
-            <i class="fas fa-arrow-left"></i> Back to Queue
-        </a>
-    </div>
-</aside>
+        <div class="bg-blue-50 px-4 py-2 rounded-lg border border-blue-100">
+            <span class="text-xs font-bold text-blue-500 uppercase">Patient</span>
+            <div class="font-bold text-gray-800">{{ patient.name }} <span class="text-gray-400 font-normal">| {{ patient.age }} y/o</span></div>
+        </div>
+    </header>
 
-<!-- ================= MAIN ================= -->
-<main class="flex-1 flex flex-col">
+    <main class="flex-1 p-6 overflow-hidden flex gap-6">
+        
+        <div class="w-1/3 flex flex-col gap-6">
+            <div class="bg-gray-900 rounded-2xl p-6 shadow-lg flex flex-col items-center justify-center relative overflow-hidden flex-1">
+                <canvas id="visualizer" class="w-full h-32 mb-4"></canvas>
+                <div id="recording-status" class="text-gray-400 text-sm font-mono mb-4">Ready to Record</div>
+                
+                <button id="record-btn" onclick="startCountdown()" class="w-20 h-20 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white shadow-xl transition transform hover:scale-105">
+                    <i class="fas fa-microphone text-3xl"></i>
+                </button>
+                <button id="stop-btn" onclick="stopRecording()" class="hidden w-20 h-20 bg-gray-700 hover:bg-gray-600 rounded-full flex items-center justify-center text-white shadow-xl transition border-4 border-red-500">
+                    <i class="fas fa-stop text-3xl"></i>
+                </button>
+            </div>
 
-<header class="h-16 bg-white border-b flex items-center px-8">
-    <h1 class="text-xl font-bold text-gray-800">Current Visit Session</h1>
-</header>
-
-<div class="flex-1 overflow-y-auto p-8">
-
-<!-- ================= SETUP ================= -->
-<div id="view-setup" class="max-w-3xl mx-auto space-y-6">
-    <div class="bg-blue-50 p-6 rounded-lg border">
-        <h2 class="font-bold text-blue-900 mb-2">Visit Context (Symptoms)</h2>
-        <p class="text-blue-800">{{ visit.symptoms }}</p>
-    </div>
-    <button onclick="startSession()"
-        class="w-full bg-[#2a9d8f] hover:bg-[#21867a] text-white font-bold py-4 rounded-full shadow-lg text-lg">
-        <i class="fas fa-microphone mr-2"></i> START RECORDING
-    </button>
-</div>
-
-<!-- ================= RECORDING ================= -->
-<div id="view-recording" class="hidden max-w-3xl mx-auto space-y-6">
-    <div class="bg-white p-8 rounded-2xl border text-center space-y-6">
-        <button onclick="togglePause()" id="pauseBtn"
-            class="w-full bg-blue-500 text-white py-4 rounded-full font-bold">
-            PAUSE
-        </button>
-
-        <div class="flex justify-between items-center px-4">
-            <span id="timer" class="text-2xl font-mono">00:00</span>
-            <span class="bg-green-100 text-green-700 text-xs font-bold px-3 py-1 rounded-full animate-pulse">
-                Live Audio
-            </span>
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 flex-1 flex flex-col">
+                <h3 class="text-xs font-bold text-gray-400 uppercase mb-2"><i class="fas fa-stream mr-1"></i> Real-time Raw Transcription</h3>
+                <textarea id="raw-text" readonly class="w-full flex-1 bg-gray-50 border border-gray-100 rounded-lg p-3 text-sm text-gray-700 outline-none resize-none font-mono" placeholder="Speech text will appear here as you talk..."></textarea>
+            </div>
         </div>
 
-        <div id="waveform" class="h-16 bg-gray-50 rounded-lg flex gap-1 px-4"></div>
-    </div>
+        <div class="w-2/3 bg-white rounded-2xl shadow-sm border border-gray-200 flex flex-col relative">
+            <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-2xl">
+                <h2 class="font-bold text-gray-700 flex items-center gap-2"><i class="fas fa-notes-medical text-blue-500"></i> Medical Note (SOAP)</h2>
+                <div id="processing-indicator" class="hidden flex items-center gap-2 text-blue-600 text-sm font-bold">
+                    <i class="fas fa-spinner fa-spin"></i> Processing AI...
+                </div>
+            </div>
+            
+            <textarea id="soap-note" class="flex-1 p-6 outline-none text-gray-800 text-base leading-relaxed resize-none font-sans" placeholder="S: ...&#10;O: ...&#10;A: ...&#10;P: ..."></textarea>
+            
+            <div class="p-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50 rounded-b-2xl">
+                <button onclick="saveNote('draft')" class="px-6 py-2 text-gray-600 hover:bg-gray-200 rounded-lg font-bold transition">Save Draft</button>
+                <button onclick="saveNote('finalize')" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-md transition">
+                    Finalize & Sign <i class="fas fa-file-signature ml-2"></i>
+                </button>
+            </div>
+        </div>
 
-    <button onclick="processTranscription()"
-        class="w-full bg-gray-200 py-3 rounded-lg font-bold">
-        STOP & PROCESS
-    </button>
-</div>
+    </main>
 
-<!-- ================= RESULTS (NEW) ================= -->
-<div id="view-results" class="hidden grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+        let recognition; // For Real-time Text
 
-<!-- Raw Transcription -->
-<div class="bg-white p-5 rounded-xl border">
-    <h3 class="font-bold mb-2">Raw Transcription (Verbatim)</h3>
-    <div id="transcription-text"
-         class="h-96 overflow-y-auto border rounded-lg p-4 text-sm bg-gray-50"></div>
-</div>
+        // --- 1. COUNTDOWN LOGIC ---
+        function startCountdown() {
+            const overlay = document.getElementById('countdown-overlay');
+            overlay.style.display = 'flex';
+            let count = 3;
+            overlay.innerText = count;
 
-<!-- SOAP -->
-<div class="bg-white p-5 rounded-xl border">
-
-<div class="bg-blue-50 border p-3 rounded-lg mb-4 flex gap-3">
-    <i class="fas fa-robot text-blue-600"></i>
-    <div>
-        <div class="font-bold text-blue-800 text-sm">AI-Generated Clinical Note</div>
-        <div class="text-xs text-blue-600">Editable before finalisation</div>
-    </div>
-</div>
-
-<div class="space-y-3">
-    <label class="text-xs font-bold text-blue-600">SUBJECTIVE</label>
-    <textarea id="soap-s" class="w-full p-3 border rounded-lg h-20"></textarea>
-
-    <label class="text-xs font-bold text-blue-600">OBJECTIVE</label>
-    <textarea id="soap-o" class="w-full p-3 border rounded-lg h-20"></textarea>
-
-    <label class="text-xs font-bold text-blue-600">ASSESSMENT</label>
-    <textarea id="soap-a" class="w-full p-3 border rounded-lg h-20"></textarea>
-
-    <label class="text-xs font-bold text-blue-600">PLAN</label>
-    <textarea id="soap-p" class="w-full p-3 border rounded-lg h-20"></textarea>
-</div>
-
-<div class="flex gap-4 mt-6">
-    <button onclick="saveData('draft')" class="flex-1 border py-3 rounded font-bold">
-        Save Draft
-    </button>
-    <button onclick="saveData('finalize')" class="flex-1 bg-[#2a9d8f] text-white py-3 rounded font-bold">
-        Finalize & Sign
-    </button>
-</div>
-
-</div>
-</div>
-
-</div>
-</main>
-
-<!-- ================= SCRIPT ================= -->
-
-<script>
-const visitID = "{{ visit.id }}";
-let mediaRecorder, audioChunks = [];
-let seconds = 0, timerInterval, isPaused = false;
-
-// ---------------- VISUALIZER GLOBALS ----------------
-const barCount = 40;
-const bars = [];
-const waveContainer = document.getElementById("waveform");
-
-// Create bars once
-for (let i = 0; i < barCount; i++) {
-    const bar = document.createElement("div");
-    bar.className = "waveform-bar";
-    waveContainer.appendChild(bar);
-    bars.push(bar);
-}
-
-
-// Visualizer
-let audioContext, analyser, dataArray, animationId;
-function setupVisualizer(stream) {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const source = audioContext.createMediaStreamSource(stream);
-
-    analyser = audioContext.createAnalyser();
-    analyser.fftSize = 64;
-
-    source.connect(analyser);
-
-    const bufferLength = analyser.frequencyBinCount;
-    dataArray = new Uint8Array(bufferLength);
-
-    function animate() {
-        analyser.getByteFrequencyData(dataArray);
-        for (let i = 0; i < bars.length; i++) {
-            const value = dataArray[i % bufferLength] || 0;
-            const height = Math.max(5, (value / 255) * 40);
-            bars[i].style.height = `${height}px`;
+            const timer = setInterval(() => {
+                count--;
+                if(count > 0) {
+                    overlay.innerText = count;
+                } else {
+                    clearInterval(timer);
+                    overlay.style.display = 'none';
+                    startRecording(); // Actually start
+                }
+            }, 1000);
         }
-        animationId = requestAnimationFrame(animate);
-    }
-    animate();
-}
 
-function stopVisualizer() {
-    if (audioContext) {
-        audioContext.close();
-        audioContext = null;
-    }
-    cancelAnimationFrame(animationId);
-}
+        // --- 2. AUDIO & VISUALIZER LOGIC ---
+        async function startRecording() {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
 
+            // Setup Visualizer (Waveform Style)
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const source = audioCtx.createMediaStreamSource(stream);
+            const analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 2048; 
+            source.connect(analyser);
+            drawWaveform(analyser);
 
-for(let i=0;i<barCount;i++){
-    const b=document.createElement("div");
-    b.className="waveform-bar";
-    waveContainer.appendChild(b);
-    bars.push(b);
-}
+            // Setup Real-time Text
+            startRealTimeText();
 
-async function startSession() {
-    try {
-        // 1️⃣ Permission popup happens HERE
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
+            mediaRecorder.start();
 
-        // 2️⃣ MediaRecorder setup (NO forced mimeType)
-        mediaRecorder = new MediaRecorder(stream);
-        audioChunks = [];
+            isRecording = true;
+            document.getElementById('record-btn').classList.add('hidden');
+            document.getElementById('stop-btn').classList.remove('hidden');
+            document.getElementById('recording-status').innerText = "Recording in Progress...";
+            document.getElementById('recording-status').classList.add('text-red-500', 'animate-pulse');
+        }
 
-        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+        function stopRecording() {
+            mediaRecorder.stop();
+            isRecording = false;
+            if(recognition) recognition.stop(); // Stop text
+            
+            document.getElementById('record-btn').classList.remove('hidden');
+            document.getElementById('stop-btn').classList.add('hidden');
+            document.getElementById('recording-status').innerText = "Processing Audio...";
+            document.getElementById('recording-status').classList.remove('text-red-500', 'animate-pulse');
+            document.getElementById('processing-indicator').classList.remove('hidden');
 
-        mediaRecorder.onstop = () => {
-            // 3️⃣ Use browser-native format (WebM / OGG)
-            const audioBlob = new Blob(audioChunks, {
-                type: mediaRecorder.mimeType
+            mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                const formData = new FormData();
+                formData.append("audio_data", audioBlob);
+                formData.append("visit_id", "{{ visit.id }}");
+
+                fetch('/process_audio', { method: 'POST', body: formData })
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('soap-note').value = data.soap_note;
+                    document.getElementById('processing-indicator').classList.add('hidden');
+                    document.getElementById('recording-status').innerText = "Ready to Record";
+                });
+            };
+        }
+
+        // --- 3. WAVEFORM VISUALIZER ---
+        function drawWaveform(analyser) {
+            const canvas = document.getElementById("visualizer");
+            const ctx = canvas.getContext("2d");
+            const bufferLength = analyser.fftSize;
+            const dataArray = new Uint8Array(bufferLength);
+
+            function draw() {
+                if(!isRecording) return;
+                requestAnimationFrame(draw);
+                analyser.getByteTimeDomainData(dataArray);
+
+                ctx.fillStyle = "rgb(17, 24, 39)"; // Match bg-gray-900
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = "rgb(59, 130, 246)"; // Blue line
+                ctx.beginPath();
+
+                const sliceWidth = canvas.width * 1.0 / bufferLength;
+                let x = 0;
+
+                for(let i = 0; i < bufferLength; i++) {
+                    const v = dataArray[i] / 128.0;
+                    const y = v * canvas.height / 2;
+                    if(i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                    x += sliceWidth;
+                }
+                ctx.lineTo(canvas.width, canvas.height / 2);
+                ctx.stroke();
+            }
+            draw();
+        }
+
+        // --- 4. REAL-TIME TEXT (Web Speech API) ---
+        function startRealTimeText() {
+            if ('webkitSpeechRecognition' in window) {
+                recognition = new webkitSpeechRecognition();
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                
+                recognition.onresult = function(event) {
+                    let final = '';
+                    for (let i = event.resultIndex; i < event.results.length; ++i) {
+                        if (event.results[i].isFinal) {
+                            final += event.results[i][0].transcript;
+                        } else {
+                            // Interim
+                            document.getElementById('raw-text').value = final + event.results[i][0].transcript;
+                        }
+                    }
+                    if(final) document.getElementById('raw-text').value += final + ' ';
+                };
+                recognition.start();
+            } else {
+                document.getElementById('raw-text').value = "Browser doesn't support Real-time API.";
+            }
+        }
+
+        // --- 5. FINALIZE & REDIRECT ---
+        function saveNote(action) {
+            const note = document.getElementById('soap-note').value;
+            fetch('/save_consultation', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ visit_id: "{{ visit.id }}", note: note, action: action })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if(data.status === 'success') {
+                    if(action === 'finalize') {
+                        alert("Consultation Finalized & Saved!");
+                        window.location.href = "/doctor/dashboard"; // Redirect to Dashboard
+                    } else {
+                        alert("Draft Saved.");
+                    }
+                }
             });
-
-            sendAudio(audioBlob);
-
-            // 4️⃣ VERY IMPORTANT: release microphone
-            stream.getTracks().forEach(track => track.stop());
-            stopVisualizer();
-        };
-
-        mediaRecorder.start();
-
-        // 5️⃣ Visualizer (optional but OK)
-        setupVisualizer(stream);
-
-        // 6️⃣ UI state change
-        document.getElementById("view-setup").classList.add("hidden");
-        document.getElementById("view-recording").classList.remove("hidden");
-
-        // 7️⃣ Timer
-        timerInterval = setInterval(() => {
-            if (!isPaused) {
-                seconds++;
-                document.getElementById("timer").innerText =
-                    `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
-            }
-        }, 1000);
-
-    } catch (err) {
-        console.error("Microphone permission error:", err);
-        alert("Microphone access failed: " + err.name);
-    }
-}
-
-function processTranscription(){
-    mediaRecorder.stop();
-    clearInterval(timerInterval);
-}
-
-function sendAudio(blob) {
-    const formData = new FormData();
-    formData.append("audio_data", blob, "recording.webm");
-    formData.append("visit_id", visitID);
-
-    fetch("/process_audio", {
-        method: "POST",
-        body: formData
-    })
-    .then(r => r.json())
-    .then(data => {
-        document.getElementById("view-recording").classList.add("hidden");
-        document.getElementById("view-results").classList.remove("hidden");
-
-        document.getElementById("transcription-text").innerText = data.transcription;
-        document.getElementById("soap-s").value = data.soap_json.subjective;
-        document.getElementById("soap-o").value = data.soap_json.objective;
-        document.getElementById("soap-a").value = data.soap_json.assessment;
-        document.getElementById("soap-p").value = data.soap_json.plan;
-    });
-}
-function togglePause(){
-    if(isPaused){
-        mediaRecorder.resume();
-        document.getElementById("pauseBtn").innerText="PAUSE";
-    }else{
-        mediaRecorder.pause();
-        document.getElementById("pauseBtn").innerText="RESUME";
-    }
-    isPaused = !isPaused;
-}
-function saveData(action){
-    fetch("/save_consultation",{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({
-            visit_id:visitID,
-            action:action,
-            raw_transcription:document.getElementById("transcription-text").innerText,
-            soap:{
-                subjective:soap-s.value,
-                objective:soap-o.value,
-                assessment:soap-a.value,
-                plan:soap-p.value
-            }
-        })
-    }).then(()=>{
-        if(action==="finalize"){
-            window.location.href="/doctor/dashboard";
-        }else{
-            alert("Draft saved");
         }
-    });
-}
-</script>
-
+    </script>
 </body>
 </html>
