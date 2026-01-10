@@ -44,37 +44,51 @@
             {% endif %}
         {% endwith %}
 
-        <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
-            <i class="fas fa-hospital-alt mr-2 text-blue-600"></i> Consultation Rooms Status
-        </h2>
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-bold text-gray-800 flex items-center">
+                <i class="fas fa-hospital-alt mr-2 text-blue-600"></i> Consultation Rooms Status
+            </h2>
+            <button onclick="toggleRooms()" id="viewMoreBtn" class="text-sm font-bold text-blue-600 hover:underline">
+                View More <i class="fas fa-chevron-down ml-1"></i>
+            </button>
+        </div>
         
         <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-10">
             {% for room in rooms %}
-            <div class="bg-white rounded-xl shadow-sm border-2 p-4 relative overflow-hidden transition hover:shadow-md
-                        {{ 'border-green-400' if room.is_free else 'border-orange-400' }}">
-                
-                <div class="absolute top-3 right-3 w-4 h-4 rounded-full shadow-inner 
-                            {{ 'bg-green-500 animate-pulse' if room.is_free else 'bg-orange-500' }}"></div>
+                <a href="{{ url_for('view_room_details', room_num=room.number) }}" target="_blank"
+                   class="bg-white rounded-xl shadow-sm border-2 p-4 relative overflow-hidden transition hover:shadow-lg hover:scale-105 block
+                            {{ 'border-green-400' if room.is_free and room.has_doctor else ('border-orange-400' if not room.is_free else 'border-gray-300 opacity-75') }}
+                            {{ 'hidden' if loop.index > 5 else '' }} room-card"
+                            data-index="{{ loop.index }}">
+                    
+                    <div class="absolute top-3 right-3 w-4 h-4 rounded-full shadow-inner 
+                                {{ 'bg-green-500 animate-pulse' if room.is_free and room.has_doctor else ('bg-orange-500' if not room.is_free else 'bg-gray-400') }}"></div>
 
-                <h3 class="font-bold text-gray-700 text-lg">Room {{ room.number }}</h3>
-                <p class="text-xs font-bold uppercase tracking-wider mb-3 
-                          {{ 'text-green-600' if room.is_free else 'text-orange-600' }}">
-                    {{ 'Patient-Free' if room.is_free else 'Occupied' }}
-                </p>
+                    <h3 class="font-bold text-gray-700 text-lg">Room {{ room.number }}</h3>
+                    <p class="text-xs font-bold uppercase tracking-wider mb-3 
+                              {{ 'text-green-600' if room.is_free and room.has_doctor else ('text-orange-600' if not room.is_free else 'text-gray-500') }}">
+                        {% if not room.has_doctor %}
+                            Unavailable
+                        {% elif room.is_free %}
+                            Open
+                        {% else %}
+                            Occupied
+                        {% endif %}
+                    </p>
 
-                <div class="space-y-2">
-                    <div class="flex items-center gap-2 text-sm text-gray-600">
-                        <i class="fas fa-user-md w-4"></i> 
-                        <span class="font-medium truncate">{{ room.doctor_name }}</span>
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-2 text-sm text-gray-600">
+                            <i class="fas fa-user-md w-4"></i> 
+                            <span class="font-medium truncate">{{ room.doctor_name }}</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-sm text-gray-600">
+                            <i class="fas fa-user-injured w-4"></i> 
+                            <span class="truncate {{ 'font-bold text-blue-600' if not room.is_free else 'text-gray-400 italic' }}">
+                                {{ room.patient_name }}
+                            </span>
+                        </div>
                     </div>
-                    <div class="flex items-center gap-2 text-sm text-gray-600">
-                        <i class="fas fa-user-injured w-4"></i> 
-                        <span class="font-medium truncate {{ 'text-gray-400 italic' if room.is_free else 'text-blue-600 font-bold' }}">
-                            {{ room.patient_name }}
-                        </span>
-                    </div>
-                </div>
-            </div>
+                </a>
             {% endfor %}
         </div>
 
@@ -89,7 +103,6 @@
                 
                 <form method="POST" action="{{ url_for('nurse_dashboard') }}">
                     <input type="hidden" name="action" value="register_new">
-                    
                     <div class="grid grid-cols-2 gap-4">
                         <div class="mb-4 col-span-2">
                             <label class="block text-gray-700 text-sm font-bold mb-2">Full Name</label>
@@ -104,12 +117,10 @@
                             <input type="number" name="age" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
                     </div>
-                    
                     <div class="mb-6">
                         <label class="block text-gray-700 text-sm font-bold mb-2">Symptoms</label>
                         <textarea name="symptom" rows="3" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
                     </div>
-                    
                     <button type="submit" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-300">
                         Register & Auto-Assign
                     </button>
@@ -124,7 +135,7 @@
                     <h2 class="text-xl font-bold text-gray-800">Existing Patient</h2>
                 </div>
 
-                <form method="POST" action="{{ url_for('nurse_dashboard') }}" class="mb-6">
+                <form method="POST" action="{{ url_for('nurse_dashboard') }}">
                     <input type="hidden" name="action" value="search_patient">
                     <div class="flex space-x-2">
                         <div class="flex-grow">
@@ -136,11 +147,20 @@
                 </form>
 
                 {% if found_patient %}
+                <div class="mt-2 mb-4 text-green-600 font-bold text-sm">
+                    <i class="fas fa-check-circle mr-1"></i> {{ found_patient.name }} found
+                </div>
+
                 <div class="bg-green-50 border border-green-200 rounded-lg p-4 animate-fade-in">
-                    <h3 class="font-bold text-lg text-green-800">{{ found_patient.name }}</h3>
                     <form method="POST" action="{{ url_for('nurse_dashboard') }}">
                         <input type="hidden" name="action" value="add_existing_to_queue">
                         <input type="hidden" name="patient_id" value="{{ found_patient.id }}">
+                        
+                        <div class="mb-2">
+                            <div class="text-lg font-bold text-gray-800">{{ found_patient.name }}</div>
+                            <div class="text-xs text-gray-500 font-mono">{{ found_patient.ic_number }}</div>
+                        </div>
+
                         <div class="mb-4 mt-2">
                             <label class="block text-gray-700 text-sm font-bold mb-2">Current Symptoms</label>
                             <textarea name="symptom" rows="2" required class="w-full px-3 py-2 border rounded bg-white"></textarea>
@@ -157,7 +177,7 @@
         {% if queue %}
         <div class="mt-12 bg-white rounded-xl shadow-md p-6">
             <h2 class="text-xl font-bold text-gray-800 mb-6 text-red-600">
-                <i class="fas fa-hourglass-half mr-3"></i> Waiting List (Rooms Full)
+                <i class="fas fa-hourglass-half mr-3"></i> Waiting List (No Available Doctor Rooms)
             </h2>
             <div class="overflow-x-auto">
                 <table class="min-w-full leading-normal">
@@ -182,5 +202,23 @@
         </div>
         {% endif %}
     </div>
+
+    <script>
+        function toggleRooms() {
+            const cards = document.querySelectorAll('.room-card');
+            const btn = document.getElementById('viewMoreBtn');
+            let isExpanded = btn.innerHTML.includes('Less');
+
+            cards.forEach(card => {
+                if (parseInt(card.dataset.index) > 5) {
+                    if (isExpanded) card.classList.add('hidden');
+                    else card.classList.remove('hidden');
+                }
+            });
+
+            if (isExpanded) btn.innerHTML = 'View More <i class="fas fa-chevron-down ml-1"></i>';
+            else btn.innerHTML = 'View Less <i class="fas fa-chevron-up ml-1"></i>';
+        }
+    </script>
 </body>
 </html>

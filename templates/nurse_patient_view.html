@@ -7,37 +7,160 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body class="bg-gray-50 h-screen flex flex-col items-center justify-center font-sans">
-    <div class="bg-white p-8 rounded-xl shadow-lg border border-gray-200 w-full max-w-lg">
-        <div class="flex justify-between items-center mb-6">
-            <h1 class="text-2xl font-bold text-gray-800">Patient Profile</h1>
-            <a href="/nurse/dashboard" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></a>
+    
+    <div class="bg-white p-0 rounded-xl shadow-lg border border-gray-200 w-full max-w-2xl overflow-hidden flex flex-col h-[80vh]">
+        
+        <div class="bg-blue-600 p-6 text-white shrink-0 relative">
+            <a href="/nurse/dashboard" class="absolute top-6 right-6 text-blue-200 hover:text-white transition">
+                <i class="fas fa-times text-xl"></i>
+            </a>
+            <h1 class="text-2xl font-bold">{{ patient.name }}</h1>
+            <div class="flex items-center gap-4 mt-2 text-sm text-blue-100">
+                <span><i class="fas fa-id-card mr-1"></i> {{ patient.ic_number }}</span>
+                <span><i class="fas fa-birthday-cake mr-1"></i> Age: {{ patient.age }}</span>
+            </div>
         </div>
-        <div class="space-y-4">
-            <div>
-                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">IC Number</label>
-                <input id="p-ic" value="{{ patient.ic_number }}" readonly class="w-full bg-gray-100 border border-gray-300 p-3 rounded-lg text-gray-600 cursor-not-allowed">
-            </div>
-            <div>
-                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Full Name</label>
-                <input id="p-name" value="{{ patient.name }}" class="w-full border border-gray-300 p-3 rounded-lg focus:border-blue-500 outline-none">
-            </div>
-            <div>
-                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Age</label>
-                <input id="p-age" value="{{ patient.age }}" class="w-full border border-gray-300 p-3 rounded-lg focus:border-blue-500 outline-none">
-            </div>
+
+        <div class="flex border-b border-gray-200 shrink-0">
+            <button onclick="switchTab('info')" id="tab-info" class="flex-1 py-4 font-bold text-sm text-blue-600 border-b-2 border-blue-600 bg-blue-50 transition">
+                Personal Information
+            </button>
+            <button onclick="switchTab('history')" id="tab-history" class="flex-1 py-4 font-bold text-sm text-gray-500 hover:text-gray-700 transition">
+                History Record <i class="fas fa-lock text-xs ml-1 opacity-50"></i>
+            </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-8 relative">
             
-            <div class="bg-yellow-50 p-3 rounded-lg border border-yellow-100 text-xs text-yellow-800 mt-4">
-                <i class="fas fa-info-circle mr-1"></i> Warning: Deleting this profile removes all history.
+            <div id="content-info" class="space-y-6">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">IC Number (Read-Only)</label>
+                    <input id="p-ic" value="{{ patient.ic_number }}" readonly class="w-full bg-gray-100 border border-gray-300 p-3 rounded-lg text-gray-600 cursor-not-allowed">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Full Name</label>
+                    <input id="p-name" value="{{ patient.name }}" class="w-full border border-gray-300 p-3 rounded-lg focus:border-blue-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Age</label>
+                    <input id="p-age" value="{{ patient.age }}" class="w-full border border-gray-300 p-3 rounded-lg focus:border-blue-500 outline-none">
+                </div>
+                
+                <div class="flex gap-4 pt-4 border-t border-gray-100 mt-6">
+                    <button onclick="deletePatient()" class="flex-1 bg-red-100 hover:bg-red-200 text-red-600 font-bold py-3 rounded-lg transition">
+                        <i class="fas fa-trash-alt mr-2"></i> Delete Profile
+                    </button>
+                    <button onclick="savePatient()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition">
+                        <i class="fas fa-save mr-2"></i> Save Changes
+                    </button>
+                </div>
             </div>
 
-            <div class="flex gap-4 pt-4">
-                <button onclick="deletePatient()" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-lg transition"><i class="fas fa-trash-alt mr-2"></i> Delete</button>
-                <button onclick="savePatient()" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-lg transition"><i class="fas fa-save mr-2"></i> Save Changes</button>
+            <div id="content-history" class="hidden h-full flex flex-col">
+                
+                <div id="history-lock" class="flex-1 flex flex-col items-center justify-center text-center p-6">
+                    <div class="bg-gray-100 p-4 rounded-full mb-4">
+                        <i class="fas fa-user-md text-3xl text-gray-400"></i>
+                    </div>
+                    <h3 class="font-bold text-gray-700 mb-2">Restricted Access</h3>
+                    <p class="text-sm text-gray-500 mb-6">Enter a valid Doctor ID to view medical records.</p>
+                    
+                    <div class="flex w-full max-w-xs gap-2">
+                        <input type="password" id="doctor-id-input" placeholder="Doctor ID # (e.g. 1)" class="flex-1 border border-gray-300 p-2 rounded outline-none focus:border-blue-500">
+                        <button onclick="verifyDoctor()" class="bg-gray-800 text-white px-4 py-2 rounded font-bold hover:bg-black">Verify</button>
+                    </div>
+                    <p id="verify-error" class="text-red-500 text-xs mt-2 hidden">Invalid Doctor ID.</p>
+                </div>
+
+                <div id="history-list" class="hidden space-y-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-gray-800">Medical History</h3>
+                        <span class="text-xs text-green-600 bg-green-50 px-2 py-1 rounded border border-green-200">
+                            <i class="fas fa-check-circle mr-1"></i> Verified Access
+                        </span>
+                    </div>
+                    <div id="records-container"></div>
+                </div>
             </div>
+
         </div>
     </div>
+
     <script>
         const ic = "{{ patient.ic_number }}";
+
+        // TAB SWITCHING
+        function switchTab(tab) {
+            document.getElementById('content-info').classList.add('hidden');
+            document.getElementById('content-history').classList.add('hidden');
+            document.getElementById('tab-info').classList.replace('text-blue-600', 'text-gray-500');
+            document.getElementById('tab-info').classList.replace('border-blue-600', 'border-transparent');
+            document.getElementById('tab-info').classList.remove('bg-blue-50');
+            
+            document.getElementById('tab-history').classList.replace('text-blue-600', 'text-gray-500');
+            document.getElementById('tab-history').classList.replace('border-blue-600', 'border-transparent');
+            document.getElementById('tab-history').classList.remove('bg-blue-50');
+
+            // Activate requested tab
+            document.getElementById('content-' + tab).classList.remove('hidden');
+            const activeBtn = document.getElementById('tab-' + tab);
+            activeBtn.classList.replace('text-gray-500', 'text-blue-600');
+            activeBtn.classList.replace('border-transparent', 'border-blue-600');
+            activeBtn.classList.add('bg-blue-50');
+        }
+
+        // DOCTOR VERIFICATION
+        function verifyDoctor() {
+            const docId = document.getElementById('doctor-id-input').value;
+            fetch('/verify_doctor_id', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ doctor_id: docId })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if(data.success) {
+                    document.getElementById('history-lock').classList.add('hidden');
+                    document.getElementById('history-list').classList.remove('hidden');
+                    loadHistory();
+                } else {
+                    document.getElementById('verify-error').classList.remove('hidden');
+                }
+            });
+        }
+
+        // LOAD HISTORY (Reuse existing API)
+        function loadHistory() {
+            const container = document.getElementById('records-container');
+            container.innerHTML = '<div class="text-center py-10"><i class="fas fa-spinner fa-spin text-blue-500"></i></div>';
+            
+            fetch('/patient/history/' + ic)
+            .then(r => r.json())
+            .then(data => {
+                container.innerHTML = '';
+                if(data.length === 0) {
+                    container.innerHTML = '<div class="text-center text-gray-400 italic py-4">No history records found.</div>';
+                    return;
+                }
+                data.forEach(v => {
+                    const item = document.createElement('div');
+                    item.className = 'bg-white border border-gray-200 p-4 rounded-lg shadow-sm hover:shadow-md transition';
+                    item.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="font-bold text-blue-900">${v.date}</div>
+                            <span class="text-xs uppercase font-bold bg-gray-100 px-2 py-1 rounded text-gray-600">${v.status}</span>
+                        </div>
+                        <div class="text-sm text-gray-800 mb-2"><strong>Reason:</strong> ${v.symptoms}</div>
+                        <div class="text-xs text-gray-500 border-t pt-2 mt-2 font-mono bg-gray-50 p-2 rounded">
+                            ${v.note ? v.note.substring(0, 150) + (v.note.length>150?'...':'') : 'No clinical notes recorded.'}
+                        </div>
+                    `;
+                    container.appendChild(item);
+                });
+            });
+        }
+
+        // SAVE & DELETE
         function savePatient() {
             const name = document.getElementById('p-name').value;
             const age = document.getElementById('p-age').value;
@@ -47,6 +170,7 @@
                 body: JSON.stringify({ic: ic, name: name, age: age})
             }).then(r => r.json()).then(data => { if(data.success) { alert("Saved!"); window.location.href = '/nurse/dashboard'; }});
         }
+        
         function deletePatient() {
             if(confirm("DANGER: Delete this patient and all history?")) {
                 fetch('/nurse/delete_patient', {

@@ -47,7 +47,7 @@ class Visit(db.Model):
     symptoms = db.Column(db.Text, nullable=False)
     soap_note = db.Column(db.Text)
     status = db.Column(db.String(20), default='waiting')
-    room = db.Column(db.String(10), nullable=True) # NEW: Assigned Room
+    room = db.Column(db.String(10), nullable=True) 
 
 # --- AUTH ROUTES ---
 @app.route('/')
@@ -66,15 +66,12 @@ def login():
             session['role'] = user.role
             session['name'] = user.name
             
-            # --- DOCTOR ROOM LOGIC ---
             if user.role == 'doctor':
                 user.status = 'online'
-                # The form sends 'room' only if visible, but we check if it exists
                 selected_room = request.form.get('room')
                 if selected_room:
                     user.room = selected_room
                 db.session.commit()
-            # -------------------------
             
             return redirect('/')
         flash('Invalid credentials', 'error')
@@ -86,7 +83,7 @@ def logout():
         user = User.query.get(session['user_id'])
         if user and user.role == 'doctor':
             user.status = 'away'
-            user.room = None # Clear room on logout
+            user.room = None 
             db.session.commit()
     session.clear()
     return redirect('/login')
@@ -102,21 +99,27 @@ def nurse_dashboard():
     if request.method == 'POST':
         action = request.form.get('action')
 
-        # === SHARED LOGIC: FIND AVAILABLE ROOM ===
+        # === UPDATED LOGIC: FIND ROOM WITH AVAILABLE DOCTOR ===
         def find_available_room():
-            # Strategy: Find a room that has NO active visit (waiting or in_consultation)
-            # Simulation Mode: All 10 rooms are "available" if empty, regardless of doctor presence
+            # Iterate through all rooms
             for r in range(1, 11):
                 room_num = str(r)
-                # Check if this room is occupied by a patient
+                
+                # 1. Check if Doctor is ONLINE in this room
+                doctor = User.query.filter_by(role='doctor', room=room_num, status='online').first()
+                if not doctor:
+                    continue # Skip if no doctor or doctor is away
+                
+                # 2. Check if Room is FREE (no active patient)
                 active_visit = Visit.query.filter(
                     Visit.room == room_num, 
                     Visit.status.in_(['waiting', 'in_consultation'])
                 ).first()
                 
                 if not active_visit:
-                    return room_num
-            return None # All rooms full
+                    return room_num # Found a room with a doctor and no patient!
+            
+            return None # No suitable rooms found
 
         # --- ACTION 1: REGISTER NEW PATIENT ---
         if action == 'register_new':
@@ -132,7 +135,6 @@ def nurse_dashboard():
                 db.session.add(new_patient)
                 db.session.flush()
 
-                # AUTO ASSIGN ROOM
                 assigned_room = find_available_room()
                 visit_status = 'waiting' if assigned_room else 'queued'
                 
@@ -148,21 +150,20 @@ def nurse_dashboard():
                 if assigned_room:
                     flash(f'Patient registered and assigned to Room {assigned_room}!', 'success')
                 else:
-                    flash('Patient registered but all rooms are full. Added to waiting list.', 'warning')
+                    flash('Patient registered. Added to Waiting List (No Available Rooms with Doctors).', 'warning')
 
         # --- ACTION 2: SEARCH PATIENT ---
         elif action == 'search_patient':
             search_ic = request.form.get('search_ic')
             found_patient = Patient.query.filter_by(ic_number=search_ic).first()
             if not found_patient: flash('Patient not found.', 'error')
-            else: flash(f'Patient found: {found_patient.name}', 'success')
 
         # --- ACTION 3: ADD EXISTING PATIENT ---
         elif action == 'add_existing_to_queue':
             patient_id = request.form.get('patient_id')
             symptom_text = request.form.get('symptom')
-            
-            # AUTO ASSIGN ROOM
+            p_obj = Patient.query.get(patient_id)
+
             assigned_room = find_available_room()
             visit_status = 'waiting' if assigned_room else 'queued'
 
@@ -176,37 +177,62 @@ def nurse_dashboard():
             db.session.commit()
             
             if assigned_room:
-                flash(f'Patient assigned to Room {assigned_room}!', 'success')
+                flash(f'{p_obj.name} assigned to Room {assigned_room}', 'success')
             else:
-                flash('All rooms full. Patient added to waiting list.', 'warning')
+                flash(f'{p_obj.name} added to Waiting List (No Available Rooms with Doctors).', 'warning')
             return redirect(url_for('nurse_dashboard'))
 
-    # === PREPARE DASHBOARD DATA (ROOM GRID) ===
+    # === PREPARE DASHBOARD DATA ===
     rooms_data = []
     for i in range(1, 11):
         r_num = str(i)
-        # Find Doctor in this room
         doc = User.query.filter_by(role='doctor', room=r_num, status='online').first()
-        # Find Patient in this room
         visit = Visit.query.filter(
             Visit.room == r_num, 
             Visit.status.in_(['waiting', 'in_consultation'])
         ).first()
         
-        status_color = 'orange' if visit else 'green' # Orange = Occupied, Green = Free
+        status_color = 'orange' if visit else ('green' if doc else 'gray') # Gray if no doctor
         
         rooms_data.append({
             'number': r_num,
             'color': status_color,
-            'doctor_name': doc.name if doc else "No Doctor",
+            'doctor_name': doc.name if doc else "No Doctor Available",
             'patient_name': visit.patient.name if visit else "Empty",
-            'is_free': not visit
+            'patient_ic': visit.patient.ic_number if visit else "",
+            'patient_age': visit.patient.age if visit else "",
+            'visit_symptoms': visit.symptoms if visit else "",
+            'is_free': not visit,
+            'has_doctor': bool(doc)
         })
 
-    # Fetch Waiting List (Patients not assigned to a room yet)
     waiting_list = Visit.query.filter_by(status='queued').order_by(Visit.timestamp.desc()).all()
     
     return render_template('nurse_dashboard.html', rooms=rooms_data, queue=waiting_list, found_patient=found_patient)
+
+# --- NEW ROUTE: INDIVIDUAL ROOM DETAILS ---
+@app.route('/nurse/room/<room_num>')
+def view_room_details(room_num):
+    if session.get('role') != 'nurse': return redirect('/login')
+    
+    # 1. Get Doctor Info
+    doctor = User.query.filter_by(role='doctor', room=room_num, status='online').first()
+    
+    # 2. Get Active Patient (if any)
+    active_visit = Visit.query.filter(
+        Visit.room == room_num, 
+        Visit.status.in_(['waiting', 'in_consultation'])
+    ).first()
+
+    # 3. Get Total Count for this room (For now, usually 1 active + maybe others if we had room-specific queues)
+    # Since logic only assigns 1 at a time, count is 1 or 0.
+    total_patients = 1 if active_visit else 0
+    
+    return render_template('nurse_room_details.html', 
+                         room_num=room_num, 
+                         doctor=doctor, 
+                         active_visit=active_visit, 
+                         total_patients=total_patients)
 
 @app.route('/nurse/patient_list')
 def nurse_patient_list():
@@ -236,26 +262,27 @@ def delete_patient():
     db.session.commit()
     return jsonify({'success': True})
 
+@app.route('/verify_doctor_id', methods=['POST'])
+def verify_doctor_id():
+    data = request.json
+    doc_id = data.get('doctor_id')
+    doctor = User.query.filter_by(id=doc_id, role='doctor').first()
+    if doctor:
+        return jsonify({'success': True, 'doctor_name': doctor.name})
+    else:
+        return jsonify({'success': False})
+
 # --- DOCTOR ROUTES ---
 @app.route('/doctor/dashboard')
 def doctor_dashboard():
     if session.get('role') != 'doctor': return redirect('/login')
-    
     doctor = User.query.get(session['user_id'])
     my_room = doctor.room
-    
-    # Only show patients assigned to THIS doctor's room
     if my_room:
         queue = Visit.query.filter_by(room=my_room, status='waiting').order_by(Visit.timestamp.asc()).all()
     else:
         queue = []
-
-    return render_template('doctor_patients.html', 
-                         patients=queue, 
-                         doctor_name=doctor.name, 
-                         doctor_status=doctor.status, 
-                         current_user_id=doctor.id,
-                         current_room=my_room)
+    return render_template('doctor_patients.html', patients=queue, doctor_name=doctor.name, doctor_status=doctor.status, current_user_id=doctor.id, current_room=my_room)
 
 @app.route('/doctor/history')
 def doctor_history_page():
@@ -273,13 +300,8 @@ def toggle_status():
 def start_consultation(visit_id):
     if session.get('role') != 'doctor': return redirect('/login')
     visit = Visit.query.get_or_404(visit_id)
-    
-    # Assign Doctor ID to visit when they actually start
     visit.doctor_id = session['user_id']
-      
-    # Commit the doctor_id assignment
     db.session.commit()
-
     return render_template('consultation.html', visit=visit, patient=visit.patient, doctor_name=session['name'])
 
 # --- DEMO ROUTES ---
@@ -312,16 +334,11 @@ def save_consultation():
     data = request.json
     visit_id = data.get('visit_id')
     if visit_id == 'demo': return jsonify({'status': 'success', 'message': 'Demo note processed'})
-    
     visit = Visit.query.get(visit_id)
     if not visit: return jsonify({'error': 'Visit not found'}), 404
     visit.soap_note = data.get('note')
-    
-    # When completed, free up the room!
     if data.get('action') == 'finalize': 
         visit.status = 'completed'
-        # room logic is handled by 'status' check in dashboard (completed visits don't block rooms)
-        
     db.session.commit()
     return jsonify({'status': 'success'})
 
@@ -336,75 +353,20 @@ def get_patient_history(ic):
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-        
-        # --- SIMULATION DATA SETUP ---
-        
-        # 1. Create Default Nurse & General Doctor
+        # --- SIMULATION DATA ---
         if not User.query.filter_by(email='nurse@test.com').first():
             db.session.add(User(name="Nurse Joy", email='nurse@test.com', password_hash=generate_password_hash('nurse123'), role='nurse'))
             
-        if not User.query.filter_by(email='doctor@test.com').first():
-            db.session.add(User(name="Dr. Strange", email='doctor@test.com', password_hash=generate_password_hash('doctor123'), role='doctor', status='away'))
-
-        # 2. Simulation: Doctors in specific rooms
         sim_doctors = [
-            # Room 3 (Occupied with Patient)
-            {'name': 'Dr. Jackson Wang', 'email': 'jacksonwang@hospital.com', 'room': '3', 'status': 'online'},
-            # Room 8 (Occupied with Patient)
-            {'name': 'Dr. Taylor Swift', 'email': 'taylorswift@hospital.com', 'room': '8', 'status': 'online'},
-            # Room 9 (Occupied with Patient)
-            {'name': 'Dr. Aida Alya', 'email': 'aidaalya@hospital.com', 'room': '9', 'status': 'online'},
-            # Room 5 (Doctor Only - No Patient)
-            {'name': 'Dr. Aiman Afiq', 'email': 'aimanafiq@hospital.com', 'room': '5', 'status': 'online'},
-            # Room 10 (Doctor Only - No Patient)
-            {'name': 'Dr. Jayden Lim', 'email': 'lim@hospital.com', 'room': '10', 'status': 'online'},
+            {'name': 'Dr. Jackson Wang', 'email': 'jacksonwang@hospital.com', 'room': '3'},
+            {'name': 'Dr. Taylor Swift', 'email': 'taylorswift@hospital.com', 'room': '8'},
+            {'name': 'Dr. Aida Alya', 'email': 'aidaalya@hospital.com', 'room': '9'},
+            {'name': 'Dr. Aiman Afiq', 'email': 'aimanafiq@hospital.com', 'room': '5'},
+            {'name': 'Dr. Jayden Lim', 'email': 'lim@hospital.com', 'room': '10'},
         ]
-
         for doc_data in sim_doctors:
             if not User.query.filter_by(email=doc_data['email']).first():
-                new_doc = User(
-                    name=doc_data['name'], 
-                    email=doc_data['email'], 
-                    password_hash=generate_password_hash('password'), 
-                    role='doctor', 
-                    status=doc_data['status'],
-                    room=doc_data['room']
-                )
+                new_doc = User(name=doc_data['name'], email=doc_data['email'], password_hash=generate_password_hash('password'), role='doctor', status='online', room=doc_data['room'])
                 db.session.add(new_doc)
         db.session.commit()
-
-        # 3. Simulation: Patients for Rooms 3, 8, 9
-        sim_patients = [
-            {'name': 'Bambi Lee', 'ic': '120820050506', 'age': '14', 'room': '3'},
-            {'name': 'Nikola Tesla', 'ic': '120920050506', 'age': '14', 'room': '8'},
-            {'name': 'Tong Shen Sheng', 'ic': '05040302010506', 'age': '20', 'room': '9'},
-        ]
-
-        for p_data in sim_patients:
-            # Create Patient if not exists
-            patient = Patient.query.filter_by(ic_number=p_data['ic']).first()
-            if not patient:
-                patient = Patient(name=p_data['name'], ic_number=p_data['ic'], age=p_data['age'])
-                db.session.add(patient)
-                db.session.commit()
-            
-            # Create Active Visit (Marking Room Occupied)
-            # We check if there's already an active visit in this room to avoid duplicates on restart
-            active_visit = Visit.query.filter_by(room=p_data['room'], status='waiting').first()
-            if not active_visit:
-                # Find the doctor for this room to assign correctly
-                room_doc = User.query.filter_by(room=p_data['room'], role='doctor').first()
-                
-                new_visit = Visit(
-                    patient_id=patient.id,
-                    doctor_id=room_doc.id if room_doc else None,
-                    symptoms="Simulation: Severe headache and dizziness.",
-                    status='waiting', # 'waiting' or 'in_consultation' makes it occupied
-                    room=p_data['room']
-                )
-                db.session.add(new_visit)
-        
-        db.session.commit()
-        print(">>> Simulation Data Loaded: Rooms 3, 8, 9 Occupied. Rooms 5, 10 Doctor Ready.")
-
     app.run(debug=True)
