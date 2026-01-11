@@ -1,285 +1,459 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Consultation</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        /* Base style for bars */
-        .waveform-bar { 
-            width: 6px; 
-            background-color: #60a5fa; 
-            border-radius: 99px; 
-            height: 5px; 
-            transition: height 0.05s ease;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>Consultation</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <style>
+    .waveform-bar{
+      width: 6px;
+      background-color: #60a5fa;
+      border-radius: 99px;
+      height: 5px;
+      transition: height 0.05s ease;
+    }
+  </style>
 </head>
+
 <body class="bg-gray-50 h-screen flex overflow-hidden font-sans">
 
-    <aside class="w-80 bg-white border-r border-gray-200 flex flex-col justify-between hidden md:flex">
-        <div class="flex-1 flex flex-col overflow-hidden">
-            <div class="p-6">
-                <div class="font-bold text-gray-700 text-lg mb-4">History: {{ patient.name }}</div>
-                <div class="text-xs text-gray-400 mb-2">IC: {{ patient.ic_number }}</div>
-                <button onclick="loadHistory()" class="text-sm text-blue-600 hover:underline mb-4"><i class="fas fa-sync"></i> Refresh History</button>
-            </div>
-            
-            <div id="history-list" class="flex-1 overflow-y-auto px-6 pb-6 space-y-4">
-                <div class="text-center text-gray-400 text-sm mt-4">Loading history...</div>
-            </div>
+  <aside class="w-80 bg-white border-r border-gray-200 flex flex-col justify-between hidden md:flex">
+    <div class="flex-1 flex flex-col overflow-hidden">
+      <div class="p-6">
+        <div class="font-bold text-gray-700 text-lg mb-4">{patient.name}</div>
+        <div class="text-xs text-gray-400 mb-2">IC: {{ patient.ic_number }}</div>
+        <button onclick="loadHistory()" class="text-sm text-blue-600 hover:underline mb-4">
+          <i class="fas fa-sync"></i> Refresh History
+        </button>
+      </div>
+
+      <div id="history-list" class="flex-1 overflow-y-auto px-6 pb-6 space-y-4">
+        <div class="text-center text-gray-400 text-sm mt-4">Loading history...</div>
+      </div>
+    </div>
+
+    <div class="p-4 border-t border-gray-100">
+      <a href="/doctor/dashboard" class="flex items-center gap-2 text-gray-600 hover:text-blue-600">
+        <i class="fas fa-arrow-left"></i> Back to Queue
+      </a>
+    </div>
+  </aside>
+
+  <main class="flex-1 flex flex-col relative">
+    <header class="h-16 border-b border-gray-200 bg-white flex items-center px-8 justify-between shrink-0">
+      <h1 class="text-xl font-bold text-gray-800">Current Visit Session</h1>
+    </header>
+
+    <div class="flex-1 overflow-y-auto p-8">
+
+      <div id="view-setup" class="max-w-3xl mx-auto space-y-6">
+        <div class="bg-blue-50 p-6 rounded-lg border border-blue-100">
+          <h2 class="font-bold text-blue-900 mb-2">Symptoms:</h2>
+          <p class="text-blue-800">{{ visit.symptoms }}</p>
         </div>
-        
-        <div class="p-4 border-t border-gray-100">
-            <a href="/doctor/dashboard" class="flex items-center gap-2 text-gray-600 hover:text-blue-600">
-                <i class="fas fa-arrow-left"></i> Back to Queue
-            </a>
+
+        <button onclick="startSession()" class="w-full bg-[#2a9d8f] hover:bg-[#21867a] text-white font-bold py-4 rounded-full shadow-lg text-lg transition">
+          <i class="fas fa-microphone mr-2"></i> START RECORDING
+        </button>
+      </div>
+
+      <div id="view-recording" class="max-w-3xl mx-auto space-y-6 hidden">
+        <div class="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm text-center space-y-6">
+
+          <button onclick="togglePause()" id="pauseBtn"
+            class="w-full bg-[#3b82f6] hover:bg-blue-600 text-white font-bold py-4 rounded-full shadow-lg text-lg transition">
+            PAUSE
+          </button>
+
+          <div class="flex justify-between items-center px-4">
+            <span id="timer" class="text-2xl font-bold font-mono text-gray-800">00:00</span>
+            <span class="bg-green-100 text-green-700 text-xs font-bold px-3 py-1 rounded-full animate-pulse">Live Audio</span>
+          </div>
+
+          <div id="waveform" class="h-16 bg-gray-50 rounded-lg flex items-center justify-center gap-1 px-4 overflow-hidden"></div>
+
+          <div class="text-left">
+            <div class="text-sm font-bold text-gray-700 mb-2">Live Transcript (updates every 30s)</div>
+            <div id="live-transcript" class="bg-gray-50 border border-gray-200 rounded-lg p-3 h-28 overflow-y-auto text-sm text-gray-700"></div>
+            <div class="text-xs text-gray-400 mt-2">
+              Tip: For best accuracy, speak clearly and avoid background music/noise.
+            </div>
+          </div>
         </div>
-    </aside>
 
-    <main class="flex-1 flex flex-col relative">
-        <header class="h-16 border-b border-gray-200 bg-white flex items-center px-8 justify-between shrink-0">
-            <h1 class="text-xl font-bold text-gray-800">Current Visit Session</h1>
-        </header>
+        <button onclick="processTranscription()" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 rounded-lg transition">
+          STOP & PROCESS
+        </button>
+      </div>
 
-        <div class="flex-1 overflow-y-auto p-8">
-            
-            <div id="view-setup" class="max-w-3xl mx-auto space-y-6">
-                <div class="bg-blue-50 p-6 rounded-lg border border-blue-100">
-                    <h2 class="font-bold text-blue-900 mb-2">Visit Context (Symptoms)</h2>
-                    <p class="text-blue-800">{{ visit.symptoms }}</p>
-                </div>
-                <button onclick="startSession()" class="w-full bg-[#2a9d8f] hover:bg-[#21867a] text-white font-bold py-4 rounded-full shadow-lg text-lg transition">
-                    <i class="fas fa-microphone mr-2"></i> START RECORDING
-                </button>
-            </div>
-
-            <div id="view-recording" class="max-w-3xl mx-auto space-y-6 hidden">
-                <div class="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm text-center space-y-6">
-                    <button onclick="togglePause()" id="pauseBtn" class="w-full bg-[#3b82f6] hover:bg-blue-600 text-white font-bold py-4 rounded-full shadow-lg text-lg transition">PAUSE</button>
-                    <div class="flex justify-between items-center px-4">
-                        <span id="timer" class="text-2xl font-bold font-mono text-gray-800">00:00</span>
-                        <span class="bg-green-100 text-green-700 text-xs font-bold px-3 py-1 rounded-full animate-pulse">Live Audio</span>
-                    </div>
-                    <div id="waveform" class="h-16 bg-gray-50 rounded-lg flex items-center justify-center gap-1 px-4 overflow-hidden">
-                    </div>
-                </div>
-
-                <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-                    <h3 class="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                        <i class="fas fa-closed-captioning text-blue-500"></i> Transcription
-                    </h3>
-                    <div id="realtime-transcription" class="h-40 bg-gray-50 rounded-lg p-4 text-gray-600 text-sm overflow-y-auto border border-gray-100 font-mono leading-relaxed">
-                        <span class="italic text-gray-400">Live transcription text will appear here...</span>
-                    </div>
-                </div>
-                <button onclick="processTranscription()" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 rounded-lg transition">STOP & PROCESS</button>
-            </div>
-
-            <div id="view-results" class="hidden h-full flex flex-col md:flex-row gap-6">
-                <div class="md:w-1/3 flex flex-col gap-2">
-                    <h3 class="font-bold text-gray-800">Transcription</h3>
-                    <div id="transcription-text" class="bg-white border p-4 rounded-lg h-96 overflow-y-auto text-sm"></div>
-                </div>
-                <div class="md:w-2/3 flex flex-col gap-2">
-                    <h3 class="font-bold text-gray-800">Clinical Note</h3>
-                    <textarea id="soap-note" class="w-full h-80 p-4 border rounded-lg resize-none"></textarea>
-                    <div class="flex gap-4">
-                        <button onclick="saveData('draft')" class="flex-1 border py-3 rounded font-bold">Save Draft</button>
-                        <button onclick="saveData('finalize')" class="flex-1 bg-[#2a9d8f] text-white py-3 rounded font-bold">Finalize & Sign</button>
-                    </div>
-                </div>
-            </div>
-
+      <div id="view-results" class="hidden h-full flex flex-col md:flex-row gap-6">
+        <div class="md:w-1/3 flex flex-col gap-2">
+          <h3 class="font-bold text-gray-800">Transcription</h3>
+          <div id="transcription-text" class="bg-white border p-4 rounded-lg h-96 overflow-y-auto text-sm"></div>
         </div>
-    </main>
+        <div class="md:w-2/3 flex flex-col gap-2">
+          <h3 class="font-bold text-gray-800">Clinical Note</h3>
+          <textarea id="soap-note" class="w-full h-80 p-4 border rounded-lg resize-none"></textarea>
+          <div class="flex gap-4">
+            <button onclick="saveData('draft')" class="flex-1 border py-3 rounded font-bold">Save Draft</button>
+            <button onclick="saveData('finalize')" class="flex-1 bg-[#2a9d8f] text-white py-3 rounded font-bold">Finalize & Sign</button>
+          </div>
+        </div>
+      </div>
 
-    <script>
-        // --- VARIABLES ---
-        const patientIC = "{{ patient.ic_number }}";
-        const visitID = "{{ visit.id }}";
-        let mediaRecorder;
-        let audioChunks = [];
-        let timerInterval;
-        let seconds = 0;
-        let isPaused = false;
-        
-        // Audio Visualization Vars
-        let audioContext;
-        let analyser;
-        let dataArray;
-        let animationId;
-        const barCount = 40;
-        const waveContainer = document.getElementById('waveform');
-        const bars = [];
+    </div>
+  </main>
 
-        // --- INITIALIZATION ---
-        // Create 40 bars for visualizer
-        for(let i=0; i<barCount; i++) { 
-            const bar = document.createElement('div'); 
-            bar.className = 'waveform-bar'; 
-            waveContainer.appendChild(bar); 
-            bars.push(bar);
+  <script>
+    // --- VARIABLES ---
+    const patientIC = "{{ patient.ic_number }}";
+    const visitID = "{{ visit.id }}";
+
+    let stream;
+    let isPaused = false;
+    let timerInterval;
+    let seconds = 0;
+
+    // Waveform vars
+    let audioContext;
+    let analyser;
+    let dataArray;
+    let animationId;
+    const barCount = 40;
+    const waveContainer = document.getElementById('waveform');
+    const bars = [];
+
+    // Chunk recording (PCM -> WAV)
+    const CHUNK_MS = 30000;     // 30 seconds
+    let chunkIdx = 0;
+
+    let captureCtx;             // capture AudioContext
+    let sourceNode;
+    let processorNode;
+
+    let pcmBuffer = [];         // list of Float32Array
+    let pcmLength = 0;
+    let chunkTimer;
+
+    // --- INITIALIZATION: create bars ---
+    for (let i = 0; i < barCount; i++) {
+      const bar = document.createElement('div');
+      bar.className = 'waveform-bar';
+      waveContainer.appendChild(bar);
+      bars.push(bar);
+    }
+
+    loadHistory();
+
+    // --- HISTORY FETCH ---
+    function loadHistory() {
+      if (!patientIC) return;
+      fetch('/patient/history/' + patientIC)
+        .then(r => r.json())
+        .then(data => {
+          const container = document.getElementById('history-list');
+          container.innerHTML = '';
+          if (data.length === 0) {
+            container.innerHTML = '<div class="text-gray-400 text-center text-sm">No previous history.</div>';
+            return;
+          }
+          data.forEach(v => {
+            const item = document.createElement('div');
+            item.className = 'bg-gray-50 p-3 rounded border border-gray-200 text-sm';
+            item.innerHTML = `
+              <div class="flex justify-between">
+                <span class="font-bold text-gray-700">${v.date}</span>
+                <span class="text-[10px] uppercase bg-gray-200 px-1 rounded">${v.status}</span>
+              </div>
+              <div class="text-gray-600 mb-2 italic">"${v.symptoms}"</div>
+              <div class="text-xs text-gray-500 border-t pt-2">${v.note ? v.note.substring(0, 100) + '...' : 'No notes'}</div>
+            `;
+            container.appendChild(item);
+          });
+        });
+    }
+
+    // --- START SESSION ---
+    async function startSession() {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+        // UI
+        document.getElementById('view-setup').classList.add('hidden');
+        document.getElementById('view-recording').classList.remove('hidden');
+
+        // Reset transcript
+        const liveBox = document.getElementById('live-transcript');
+        if (liveBox) liveBox.innerText = "";
+
+        // Timer
+        seconds = 0;
+        document.getElementById('timer').innerText = "00:00";
+        timerInterval = setInterval(() => {
+          if (!isPaused) {
+            seconds++;
+            const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+            const s = (seconds % 60).toString().padStart(2, '0');
+            document.getElementById('timer').innerText = `${m}:${s}`;
+          }
+        }, 1000);
+
+        // Visualizer
+        setupVisualizer(stream);
+
+        // PCM capture
+        startPCMCapture(stream);
+
+        // Chunk loop
+        chunkIdx = 0;
+        chunkTimer = setInterval(() => {
+          if (!isPaused) flushChunk(false);
+        }, CHUNK_MS);
+
+      } catch (e) {
+        console.error(e);
+        alert("Microphone access denied. Please allow microphone access.");
+      }
+    }
+
+    // --- PCM capture ---
+    function startPCMCapture(stream) {
+      captureCtx = new (window.AudioContext || window.webkitAudioContext)();
+      sourceNode = captureCtx.createMediaStreamSource(stream);
+
+      processorNode = captureCtx.createScriptProcessor(4096, 1, 1);
+
+      processorNode.onaudioprocess = (e) => {
+        if (isPaused) return;
+        const input = e.inputBuffer.getChannelData(0);
+        const copy = new Float32Array(input.length);
+        copy.set(input);
+        pcmBuffer.push(copy);
+        pcmLength += copy.length;
+      };
+
+      sourceNode.connect(processorNode);
+
+      // IMPORTANT: connect to a "silent" gain node instead of speakers
+      const silence = captureCtx.createGain();
+      silence.gain.value = 0;
+      processorNode.connect(silence);
+      silence.connect(captureCtx.destination);
+    }
+
+    // --- WAV encode (Float32 -> 16-bit PCM WAV) ---
+    function encodeWAV(float32Samples, sampleRate) {
+      const buffer = new ArrayBuffer(44 + float32Samples.length * 2);
+      const view = new DataView(buffer);
+
+      function writeString(offset, str) {
+        for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+      }
+
+      const numChannels = 1;
+      const bitsPerSample = 16;
+      const byteRate = sampleRate * numChannels * bitsPerSample / 8;
+      const blockAlign = numChannels * bitsPerSample / 8;
+      const dataSize = float32Samples.length * 2;
+
+      writeString(0, 'RIFF');
+      view.setUint32(4, 36 + dataSize, true);
+      writeString(8, 'WAVE');
+      writeString(12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true); // PCM
+      view.setUint16(22, numChannels, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, byteRate, true);
+      view.setUint16(32, blockAlign, true);
+      view.setUint16(34, bitsPerSample, true);
+      writeString(36, 'data');
+      view.setUint32(40, dataSize, true);
+
+      let offset = 44;
+      for (let i = 0; i < float32Samples.length; i++) {
+        let s = Math.max(-1, Math.min(1, float32Samples[i]));
+        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+        offset += 2;
+      }
+
+      return new Blob([view], { type: 'audio/wav' });
+    }
+
+    function concatPCM(buffers, totalLength) {
+      const out = new Float32Array(totalLength);
+      let offset = 0;
+      for (const b of buffers) {
+        out.set(b, offset);
+        offset += b.length;
+      }
+      return out;
+    }
+
+    // --- Send Chunk (Updated to return data) ---
+    async function flushChunk(isFinal) {
+      if (pcmLength === 0) return null;
+
+      const samples = concatPCM(pcmBuffer, pcmLength);
+      pcmBuffer = [];
+      pcmLength = 0;
+
+      const wavBlob = encodeWAV(samples, captureCtx.sampleRate);
+
+      // Return the result of sendAudioChunk so we can use it in processTranscription
+      const data = await sendAudioChunk(wavBlob, chunkIdx, isFinal);
+      chunkIdx++;
+      return data;
+    }
+
+    async function sendAudioChunk(blob, idx, isFinal) {
+      const formData = new FormData();
+      formData.append("audio_data", blob, `chunk_${idx}.wav`);
+      formData.append("visit_id", visitID);
+      formData.append("chunk_idx", String(idx));
+      formData.append("final", isFinal ? "1" : "0");
+
+      const res = await fetch('/process_audio', { method: 'POST', body: formData });
+      const data = await res.json();
+
+      if (data.error) {
+        console.error(data.error);
+        return null;
+      }
+
+      // Update Live Transcript box if it still exists (Recording View)
+      const box = document.getElementById('live-transcript');
+      if (box) {
+        box.innerText = data.full_transcript || data.transcription || "";
+        box.scrollTop = box.scrollHeight;
+      }
+
+      // If backend returns soap_note (demo), keep it compatible
+      if (data.soap_note && document.getElementById('soap-note')) {
+        document.getElementById('soap-note').value = data.soap_note;
+      }
+
+      // Return data so processTranscription can use it later
+      return data;
+    }
+
+    // --- Visualizer ---
+    function setupVisualizer(stream) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const source = audioContext.createMediaStreamSource(stream);
+      analyser = audioContext.createAnalyser();
+      analyser.fftSize = 64;
+      source.connect(analyser);
+
+      const bufferLength = analyser.frequencyBinCount;
+      dataArray = new Uint8Array(bufferLength);
+
+      function animate() {
+        if (isPaused) return;
+        analyser.getByteFrequencyData(dataArray);
+
+        for (let i = 0; i < barCount; i++) {
+          const value = dataArray[i % bufferLength] || 0;
+          const height = Math.max(5, (value / 255) * 40);
+          bars[i].style.height = `${height}px`;
         }
-        
-        loadHistory();
+        animationId = requestAnimationFrame(animate);
+      }
+      animate();
+    }
 
-        // --- HISTORY FETCH ---
-        function loadHistory() {
-            if(!patientIC) return;
-            fetch('/patient/history/' + patientIC)
-            .then(r => r.json())
-            .then(data => {
-                const container = document.getElementById('history-list');
-                container.innerHTML = '';
-                if(data.length === 0) container.innerHTML = '<div class="text-gray-400 text-center text-sm">No previous history.</div>';
-                
-                data.forEach(v => {
-                    const item = document.createElement('div');
-                    item.className = 'bg-gray-50 p-3 rounded border border-gray-200 text-sm';
-                    item.innerHTML = `
-                        <div class="flex justify-between">
-                            <span class="font-bold text-gray-700">${v.date}</span>
-                            <span class="text-[10px] uppercase bg-gray-200 px-1 rounded">${v.status}</span>
-                        </div>
-                        <div class="text-gray-600 mb-2 italic">"${v.symptoms}"</div>
-                        <div class="text-xs text-gray-500 border-t pt-2">${v.note ? v.note.substring(0, 100) + '...' : 'No notes'}</div>
-                    `;
-                    container.appendChild(item);
-                });
-            });
+    function stopVisualizer() {
+      if (audioContext) audioContext.close();
+      cancelAnimationFrame(animationId);
+    }
+
+    // --- Pause / Resume ---
+    function togglePause() {
+      isPaused = !isPaused;
+      if (isPaused) {
+        document.getElementById('pauseBtn').innerText = "RESUME";
+        cancelAnimationFrame(animationId);
+      } else {
+        document.getElementById('pauseBtn').innerText = "PAUSE";
+        requestAnimationFrame(function resumeAnim() {
+          if (isPaused) return;
+          analyser.getByteFrequencyData(dataArray);
+          for (let i = 0; i < barCount; i++) {
+            const value = dataArray[i % dataArray.length] || 0;
+            const height = Math.max(5, (value / 255) * 40);
+            bars[i].style.height = `${height}px`;
+          }
+          animationId = requestAnimationFrame(resumeAnim);
+        });
+      }
+    }
+
+    // --- Stop & Process (FIXED) ---
+    async function processTranscription() {
+      clearInterval(timerInterval);
+      clearInterval(chunkTimer);
+
+      // 1. SAVE THE TEXT NOW (Before we overwrite the screen with a loading spinner)
+      const liveBox = document.getElementById('live-transcript');
+      let finalFullText = liveBox ? liveBox.innerText : "";
+
+      // 2. Show loading spinner (This wipes the liveBox from the screen)
+      const vr = document.getElementById('view-recording');
+      vr.innerHTML =
+        '<div class="text-center p-10 font-bold text-gray-600"><i class="fas fa-circle-notch fa-spin text-blue-500 text-3xl mb-4"></i><br>Finalizing Consultation...</div>';
+
+      try {
+        // 3. Send the very last chunk of audio
+        const lastData = await flushChunk(true);
+
+        // 4. If the server replies with the full transcript (including the chunk we just sent),
+        // use that instead of our saved text. This ensures we don't lose the last few seconds.
+        if (lastData && lastData.full_transcript) {
+          finalFullText = lastData.full_transcript;
         }
 
-        // --- START SESSION & AUDIO VISUALIZER ---
-        async function startSession() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                
-                // 1. Setup Recorder
-                mediaRecorder = new MediaRecorder(stream);
-                audioChunks = [];
-                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-                mediaRecorder.onstop = () => {
-                    const blob = new Blob(audioChunks, { type: 'audio/wav' });
-                    sendAudio(blob);
-                    stopVisualizer(); // Stop animation
-                };
-                mediaRecorder.start();
+      } catch (e) {
+        console.error("Final chunk failed:", e);
+      }
 
-                // 2. Setup Visualizer (Real-time Audio Graph)
-                setupVisualizer(stream);
+      // stop capture
+      try {
+        if (processorNode) processorNode.disconnect();
+        if (sourceNode) sourceNode.disconnect();
+        if (captureCtx) captureCtx.close();
+      } catch (e) {}
 
-                // 3. UI Updates
-                document.getElementById('view-setup').classList.add('hidden');
-                document.getElementById('view-recording').classList.remove('hidden');
-                
-                timerInterval = setInterval(() => { 
-                    if(!isPaused) { 
-                        seconds++; 
-                        const m = Math.floor(seconds/60).toString().padStart(2,'0'); 
-                        const s = (seconds%60).toString().padStart(2,'0');
-                        document.getElementById('timer').innerText = `${m}:${s}`; 
-                    }
-                }, 1000);
+      stopVisualizer();
 
-            } catch(e) { 
-                console.error(e);
-                alert("Microphone access denied. Please allow microphone access."); 
-            }
+      if (stream) stream.getTracks().forEach(t => t.stop());
+
+      // show results
+      document.getElementById('view-recording').classList.add('hidden');
+      document.getElementById('view-results').classList.remove('hidden');
+
+      // 5. PASTE THE SAVED TEXT into the final box
+      document.getElementById('transcription-text').innerText = finalFullText;
+    }
+
+
+    // --- Save clinical note ---
+    function saveData(action) {
+      const note = document.getElementById('soap-note').value;
+      fetch('/save_consultation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visit_id: visitID, note: note, action: action })
+      })
+      .then(() => {
+        if (action === 'finalize') {
+          alert('Session Completed & Signed!');
+          window.location.href = '/doctor/dashboard';
+        } else {
+          alert('Draft Saved');
         }
-
-        function setupVisualizer(stream) {
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const source = audioContext.createMediaStreamSource(stream);
-            analyser = audioContext.createAnalyser();
-            analyser.fftSize = 64; // Low detail for performance (32 data points)
-            source.connect(analyser);
-            
-            const bufferLength = analyser.frequencyBinCount;
-            dataArray = new Uint8Array(bufferLength);
-
-            function animate() {
-                if(isPaused) return; // Stop updating if paused
-                
-                analyser.getByteFrequencyData(dataArray);
-                
-                // Map frequency data to our 40 bars
-                for (let i = 0; i < barCount; i++) {
-                    const value = dataArray[i % bufferLength] || 0;
-                    const height = Math.max(5, (value / 255) * 40); // Max height 40px
-                    bars[i].style.height = `${height}px`;
-                }
-                animationId = requestAnimationFrame(animate);
-            }
-            animate();
-        }
-
-        function stopVisualizer() {
-            if(audioContext) audioContext.close();
-            cancelAnimationFrame(animationId);
-        }
-
-        function togglePause() {
-            if(!mediaRecorder) return;
-            isPaused = !isPaused;
-            if(isPaused) { 
-                mediaRecorder.pause(); 
-                document.getElementById('pauseBtn').innerText = "RESUME";
-                cancelAnimationFrame(animationId); // Pause visualizer
-            }
-            else { 
-                mediaRecorder.resume(); 
-                document.getElementById('pauseBtn').innerText = "PAUSE";
-                requestAnimationFrame(function resumeAnim() { // Resume visualizer
-                     if(isPaused) return;
-                     analyser.getByteFrequencyData(dataArray);
-                     for (let i = 0; i < barCount; i++) {
-                        const value = dataArray[i % dataArray.length] || 0;
-                        const height = Math.max(5, (value / 255) * 40);
-                        bars[i].style.height = `${height}px`;
-                     }
-                     animationId = requestAnimationFrame(resumeAnim);
-                });
-            }
-        }
-
-        function processTranscription() {
-            mediaRecorder.stop();
-            clearInterval(timerInterval);
-            document.getElementById('view-recording').innerHTML = '<div class="text-center p-10 font-bold text-gray-600"><i class="fas fa-circle-notch fa-spin text-blue-500 text-3xl mb-4"></i><br>Processing AI Transcription...</div>';
-        }
-
-        function sendAudio(blob) {
-            const formData = new FormData();
-            formData.append("audio_data", blob, "rec.wav");
-            formData.append("visit_id", visitID);
-
-            fetch('/process_audio', { method: 'POST', body: formData })
-            .then(r => r.json())
-            .then(data => {
-                document.getElementById('view-recording').classList.add('hidden');
-                document.getElementById('view-results').classList.remove('hidden');
-                document.getElementById('transcription-text').innerText = data.transcription;
-                document.getElementById('soap-note').value = data.soap_note;
-            });
-        }
-
-        function saveData(action) {
-            const note = document.getElementById('soap-note').value;
-            fetch('/save_consultation', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ visit_id: visitID, note: note, action: action })
-            })
-            .then(() => {
-                if(action === 'finalize') {
-                    alert('Session Completed & Signed!');
-                    window.location.href = '/doctor/dashboard';
-                }
-                else alert('Draft Saved');
-            });
-        }
-    </script>
+      });
+    }
+  </script>
 </body>
 </html>
