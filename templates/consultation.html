@@ -21,7 +21,7 @@
   <aside class="w-80 bg-white border-r border-gray-200 flex flex-col justify-between hidden md:flex">
     <div class="flex-1 flex flex-col overflow-hidden">
       <div class="p-6">
-        <div class="font-bold text-gray-700 text-lg mb-4">{patient.name}</div>
+        <div class="font-bold text-gray-700 text-lg mb-4">{{patient.name}}</div>
         <div class="text-xs text-gray-400 mb-2">IC: {{ patient.ic_number }}</div>
         <button onclick="loadHistory()" class="text-sm text-blue-600 hover:underline mb-4">
           <i class="fas fa-sync"></i> Refresh History
@@ -49,7 +49,7 @@
 
       <div id="view-setup" class="max-w-3xl mx-auto space-y-6">
         <div class="bg-blue-50 p-6 rounded-lg border border-blue-100">
-          <h2 class="font-bold text-blue-900 mb-2">Symptoms:</h2>
+          <h2 class="font-bold text-blue-900 mb-2">Patient's Current Symptom/s:</h2>
           <p class="text-blue-800">{{ visit.symptoms }}</p>
         </div>
 
@@ -147,6 +147,7 @@
     loadHistory();
 
     // --- HISTORY FETCH ---
+// --- HISTORY FETCH ---
     function loadHistory() {
       if (!patientIC) return;
       fetch('/patient/history/' + patientIC)
@@ -154,11 +155,18 @@
         .then(data => {
           const container = document.getElementById('history-list');
           container.innerHTML = '';
-          if (data.length === 0) {
-            container.innerHTML = '<div class="text-gray-400 text-center text-sm">No previous history.</div>';
+
+          // FILTER: Exclude the current visit from the history list
+          const pastVisits = data.filter(v => String(v.id) !== String(visitID));
+
+          // IF NO PAST VISITS: Show nothing (leave container empty)
+          if (pastVisits.length === 0) {
+            container.innerHTML = ''; 
             return;
           }
-          data.forEach(v => {
+
+          // RENDER PAST VISITS
+          pastVisits.forEach(v => {
             const item = document.createElement('div');
             item.className = 'bg-gray-50 p-3 rounded border border-gray-200 text-sm';
             item.innerHTML = `

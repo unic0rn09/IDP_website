@@ -71,7 +71,6 @@ def get_asr():
 
     torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
 
-    # Try to load with device_map="auto" (needs accelerate). Fallback to CPU if needed.
     try:
         base = WhisperForConditionalGeneration.from_pretrained(
             BASE_MODEL_ID,
@@ -85,7 +84,6 @@ def get_asr():
         )
         base = base.to("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Make it "transcribe what it hears" (don’t force language, don’t suppress tokens)
     base.config.forced_decoder_ids = None
     base.config.suppress_tokens = []
     base.eval()
@@ -96,7 +94,6 @@ def get_asr():
             model = PeftModel.from_pretrained(base, ADAPTER_DIR)
             model.eval()
         except Exception:
-            # If LoRA load fails, continue with base so UI doesn't break
             model = base
 
     _ASR["processor"], _ASR["model"] = processor, model
@@ -109,7 +106,6 @@ def transcribe_wav(path: str, language: str = None) -> str:
 
     inputs = processor.feature_extractor(audio, sampling_rate=TARGET_SR, return_tensors="pt").input_features
 
-    # Ensure dtype/device match model (avoid fp16 mismatch)
     model_device = next(model.parameters()).device
     model_dtype = next(model.parameters()).dtype
     inputs = inputs.to(model_device).to(model_dtype)
@@ -119,8 +115,6 @@ def transcribe_wav(path: str, language: str = None) -> str:
         max_new_tokens=256,
         task="transcribe",
     )
-    # If you want Malay bias always: language="ms"
-    # If you want auto language detect (BM/EN/CN mixed), keep None.
     if language:
         gen_kwargs["language"] = language
 
@@ -181,21 +175,29 @@ def index():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
+        selected_role = request.form.get("role_selector")
         user = User.query.filter_by(email=request.form["email"]).first()
+        
         if user and check_password_hash(user.password_hash, request.form["password"]):
+            if user.role != selected_role:
+                flash(f"Login Failed: You selected '{selected_role.capitalize()}' but this account belongs to a '{user.role.capitalize()}'.", "error")
+                return render_template("login.html")
+
             session.permanent = True
             session["user_id"] = user.id
             session["role"] = user.role
             session["name"] = user.name
 
-            # --- DOCTOR ROOM LOGIC ---
             if user.role == "doctor":
                 user.status = "online"
                 selected_room = request.form.get("room")
                 if selected_room:
+                    occupant = User.query.filter_by(room=selected_room, role='doctor', status='online').first()
+                    if occupant and occupant.id != user.id:
+                        flash(f'Room {selected_room} is occupied by {occupant.name}.', 'error')
+                        return render_template('login.html')
                     user.room = selected_room
                 db.session.commit()
-            # -------------------------
 
             return redirect("/")
         flash("Invalid credentials", "error")
@@ -228,9 +230,15 @@ def nurse_dashboard():
         def find_available_room():
             for r in range(1, 11):
                 room_num = str(r)
+                # Check Doctor
+                doc = User.query.filter_by(role='doctor', room=room_num, status='online').first()
+                if not doc: continue
+
+                # Allow adding to queue even if there is a waiting patient (Basic Queue)
+                # But strictly check for "in_consultation" to avoid double booking active session
                 active_visit = Visit.query.filter(
                     Visit.room == room_num,
-                    Visit.status.in_(["waiting", "in_consultation"]),
+                    Visit.status == "in_consultation"
                 ).first()
 
                 if not active_visit:
@@ -265,15 +273,13 @@ def nurse_dashboard():
                 if assigned_room:
                     flash(f"Patient registered and assigned to Room {assigned_room}!", "success")
                 else:
-                    flash("Patient registered but all rooms are full. Added to waiting list.", "warning")
+                    flash("Patient registered. Added to waiting list (All doctors busy).", "warning")
 
         elif action == "search_patient":
             search_ic = request.form.get("search_ic")
             found_patient = Patient.query.filter_by(ic_number=search_ic).first()
             if not found_patient:
                 flash("Patient not found.", "error")
-            else:
-                flash(f"Patient found: {found_patient.name}", "success")
 
         elif action == "add_existing_to_queue":
             patient_id = request.form.get("patient_id")
@@ -297,24 +303,56 @@ def nurse_dashboard():
                 flash("All rooms full. Patient added to waiting list.", "warning")
             return redirect(url_for("nurse_dashboard"))
 
+    # === PREPARE ROOM DATA WITH NEW COLOR LOGIC ===
     rooms_data = []
     for i in range(1, 11):
         r_num = str(i)
         doc = User.query.filter_by(role="doctor", room=r_num, status="online").first()
-        visit = Visit.query.filter(
-            Visit.room == r_num,
-            Visit.status.in_(["waiting", "in_consultation"]),
-        ).first()
-
-        status_color = "orange" if visit else "green"
+        
+        # Check for Active Consultation (Priority)
+        visit_consulting = Visit.query.filter_by(room=r_num, status="in_consultation").first()
+        # Check for Waiting Patient
+        visit_waiting = Visit.query.filter_by(room=r_num, status="waiting").first()
+        
+        visit = visit_consulting if visit_consulting else visit_waiting
+        
+        # Logic: 
+        # 1. No Doctor -> Gray ("Unavailable")
+        # 2. Doctor + In Consultation -> Orange ("In Consultation")
+        # 3. Doctor + (Empty OR Waiting) -> Green ("Open" / "Patient Waiting")
+        
+        if not doc:
+            status_text = "Unavailable"
+            color_class = "border-gray-300 opacity-75" # Gray / Dimmed
+            dot_color = "bg-gray-400"
+            text_color = "text-gray-500"
+        else:
+            if visit_consulting:
+                status_text = "In Consultation"
+                color_class = "border-orange-400" # Orange
+                dot_color = "bg-orange-500"
+                text_color = "text-orange-600"
+            else:
+                # Green for BOTH empty and waiting (as requested)
+                status_text = "Patient Waiting" if visit_waiting else "Open"
+                color_class = "border-green-400" # Green
+                dot_color = "bg-green-500 animate-pulse"
+                text_color = "text-green-600"
 
         rooms_data.append(
             {
                 "number": r_num,
-                "color": status_color,
+                "color_class": color_class,
+                "dot_color": dot_color,
+                "text_color": text_color,
+                "status_text": status_text,
                 "doctor_name": doc.name if doc else "No Doctor",
                 "patient_name": visit.patient.name if visit else "Empty",
-                "is_free": not visit,
+                "patient_ic": visit.patient.ic_number if visit else "",
+                "patient_age": visit.patient.age if visit else "",
+                "visit_symptoms": visit.symptoms if visit else "",
+                "has_doctor": bool(doc),
+                "has_patient": bool(visit)
             }
         )
 
@@ -326,6 +364,25 @@ def nurse_dashboard():
         queue=waiting_list,
         found_patient=found_patient,
     )
+
+# --- MISSING ROUTE RESTORED ---
+@app.route('/nurse/room/<room_num>')
+def view_room_details(room_num):
+    if session.get('role') != 'nurse': return redirect('/login')
+    
+    doctor = User.query.filter_by(role='doctor', room=room_num, status='online').first()
+    active_visit = Visit.query.filter(
+        Visit.room == room_num, 
+        Visit.status.in_(['waiting', 'in_consultation'])
+    ).first()
+
+    total_patients = 1 if active_visit else 0
+    
+    return render_template('nurse_room_details.html', 
+                         room_num=room_num, 
+                         doctor=doctor, 
+                         active_visit=active_visit, 
+                         total_patients=total_patients)
 
 
 @app.route("/nurse/patient_list")
@@ -361,6 +418,15 @@ def delete_patient():
     db.session.commit()
     return jsonify({"success": True})
 
+@app.route('/verify_doctor_id', methods=['POST'])
+def verify_doctor_id():
+    data = request.json
+    doc_id = data.get('doctor_id')
+    doctor = User.query.filter_by(id=doc_id, role='doctor').first()
+    if doctor:
+        return jsonify({'success': True, 'doctor_name': doctor.name})
+    else:
+        return jsonify({'success': False})
 
 # --- DOCTOR ROUTES ---
 @app.route("/doctor/dashboard")
@@ -410,13 +476,11 @@ def start_consultation(visit_id):
     visit.doctor_id = session["user_id"]
     db.session.commit()
 
-    # reset in-memory transcript for this visit
     TRANSCRIPTS[str(visit.id)] = ""
 
     return render_template("consultation.html", visit=visit, patient=visit.patient, doctor_name=session["name"])
 
 
-# --- DEMO ROUTES ---
 @app.route("/doctor/demo_session")
 def demo_session():
     if session.get("role") != "doctor":
@@ -438,12 +502,6 @@ def demo_session():
 
 @app.route("/process_audio", methods=["POST"])
 def process_audio():
-    """
-    Receives 30s WAV chunks from consultation.html, transcribes with Mesolitica (+LoRA),
-    and returns chunk + accumulated transcript.
-
-    IMPORTANT: consultation.html must send REAL WAV (PCM) chunks. Your updated file does.
-    """
     if "audio_data" not in request.files:
         return jsonify({"error": "No audio file"}), 400
 
@@ -460,7 +518,7 @@ def process_audio():
     audio_file.save(save_path)
 
     try:
-        chunk_text = transcribe_wav(save_path, language=None)  # set "ms" if you want Malay bias
+        chunk_text = transcribe_wav(save_path, language=None)
     except Exception as e:
         return jsonify({"error": f"ASR failed: {str(e)}"}), 500
 
@@ -469,22 +527,17 @@ def process_audio():
     full = (prev + " " + chunk_text).strip() if prev else chunk_text
     TRANSCRIPTS[key] = full
 
-    # save transcript to a text file (no DB migration needed)
     try:
         _save_transcript_to_file(visit_id, full)
     except Exception:
         pass
 
-    # Optional: you can also store the live transcript temporarily into soap_note for history display
-    # BUT this will be overwritten when doctor writes actual SOAP note.
-    # We'll keep SOAP note untouched by default.
-
     return jsonify(
         {
-            "transcription": chunk_text,     # this chunk
-            "full_transcript": full,         # accumulated
+            "transcription": chunk_text,
+            "full_transcript": full,
             "final": is_final,
-            "soap_note": "",                 # keep compatibility with older frontend
+            "soap_note": "",
         }
     )
 
@@ -494,7 +547,6 @@ def save_consultation():
     data = request.json
     visit_id = data.get("visit_id")
     if visit_id == "demo":
-        # save demo transcript + note to file if wanted
         demo_note = data.get("note", "")
         try:
             fp = os.path.join(INSTANCE_FOLDER, "demo_soap_note.txt")
@@ -524,6 +576,7 @@ def get_patient_history(ic):
         return jsonify([])
     history = [
         {
+            "id": v.id,
             "date": v.timestamp.strftime("%Y-%m-%d %H:%M"),
             "symptoms": v.symptoms,
             "status": v.status,
@@ -592,22 +645,20 @@ if __name__ == '__main__':
                 db.session.add(patient)
                 db.session.commit()
             
-            # # # Create a waiting visit if none exists
-            # active_visit = Visit.query.filter_by(room=p_data['room'], status='waiting').first()
-            # if not active_visit:
-            #     room_doc = User.query.filter_by(room=p_data['room'], role='doctor').first()
-            #     new_visit = Visit(
-            #         patient_id=patient.id,
-            #         doctor_id=room_doc.id if room_doc else None,
-            #         symptoms="Simulation: Severe headache and dizziness.",
-            #         status='waiting', 
-            #         room=p_data['room']
-                # )
-                # db.session.add(new_visit)
+            # Create a waiting visit if none exists
+            active_visit = Visit.query.filter_by(room=p_data['room'], status='waiting').first()
+            if not active_visit:
+                room_doc = User.query.filter_by(room=p_data['room'], role='doctor').first()
+                new_visit = Visit(
+                    patient_id=patient.id,
+                    doctor_id=room_doc.id if room_doc else None,
+                    symptoms="Cough and fever for 3 days.",
+                    status='waiting', 
+                    room=p_data['room']
+                )
+                db.session.add(new_visit)
         
         db.session.commit()
         print(">>> Simulation Data Loaded. All Doctors and Patients ready.")
-
-    # app.run(debug=True)
 
     app.run(host='0.0.0.0', port=5000, debug=False)

@@ -57,23 +57,15 @@
             {% for room in rooms %}
                 <a href="{{ url_for('view_room_details', room_num=room.number) }}" target="_blank"
                    class="bg-white rounded-xl shadow-sm border-2 p-4 relative overflow-hidden transition hover:shadow-lg hover:scale-105 block
-                            {{ 'border-green-400' if room.is_free and room.has_doctor else ('border-orange-400' if not room.is_free else 'border-gray-300 opacity-75') }}
+                            {{ room.color_class }}
                             {{ 'hidden' if loop.index > 5 else '' }} room-card"
                             data-index="{{ loop.index }}">
                     
-                    <div class="absolute top-3 right-3 w-4 h-4 rounded-full shadow-inner 
-                                {{ 'bg-green-500 animate-pulse' if room.is_free and room.has_doctor else ('bg-orange-500' if not room.is_free else 'bg-gray-400') }}"></div>
+                    <div class="absolute top-3 right-3 w-4 h-4 rounded-full shadow-inner {{ room.dot_color }}"></div>
 
                     <h3 class="font-bold text-gray-700 text-lg">Room {{ room.number }}</h3>
-                    <p class="text-xs font-bold uppercase tracking-wider mb-3 
-                              {{ 'text-green-600' if room.is_free and room.has_doctor else ('text-orange-600' if not room.is_free else 'text-gray-500') }}">
-                        {% if not room.has_doctor %}
-                            Unavailable
-                        {% elif room.is_free %}
-                            Open
-                        {% else %}
-                            Occupied
-                        {% endif %}
+                    <p class="text-xs font-bold uppercase tracking-wider mb-3 {{ room.text_color }}">
+                        {{ room.status_text }}
                     </p>
 
                     <div class="space-y-2">
@@ -83,7 +75,7 @@
                         </div>
                         <div class="flex items-center gap-2 text-sm text-gray-600">
                             <i class="fas fa-user-injured w-4"></i> 
-                            <span class="truncate {{ 'font-bold text-blue-600' if not room.is_free else 'text-gray-400 italic' }}">
+                            <span class="truncate {{ 'font-bold text-blue-600' if room.has_patient else 'text-gray-400 italic' }}">
                                 {{ room.patient_name }}
                             </span>
                         </div>
