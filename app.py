@@ -409,9 +409,32 @@ def doctor_dashboard():
     if session.get("role") != "doctor": return redirect("/login")
     doctor = User.query.get(session["user_id"])
     my_room = doctor.room
-    # Fetch ALL waiting patients for this room
-    queue = Visit.query.filter_by(room=my_room, status="waiting").order_by(Visit.timestamp.asc()).all() if my_room else []
-    return render_template("doctor_patients.html", patients=queue, doctor_name=doctor.name, doctor_status=doctor.status, current_user_id=doctor.id, current_room=my_room)
+    
+    queue = []
+    completed_patients = []
+    
+    if my_room:
+        # FIX: Include both 'waiting' AND 'in_consultation' so the patient doesn't disappear
+        queue = Visit.query.filter(
+            Visit.room == my_room, 
+            Visit.status.in_(['waiting', 'in_consultation'])
+        ).order_by(Visit.timestamp.asc()).all()
+        
+        # FIX: Fetch completed patients for the bottom list
+        completed_patients = Visit.query.filter_by(
+            room=my_room, 
+            status="completed"
+        ).order_by(Visit.timestamp.desc()).all()
+
+    return render_template(
+        "doctor_patients.html", 
+        patients=queue, 
+        completed_patients=completed_patients, 
+        doctor_name=doctor.name, 
+        doctor_status=doctor.status, 
+        current_user_id=doctor.id, 
+        current_room=my_room
+    )
 
 @app.route("/doctor/history")
 def doctor_history_page():
@@ -485,14 +508,14 @@ if __name__ == '__main__':
         if not User.query.filter_by(email='nurse@test.com').first():
             db.session.add(User(name="Nurse Joy", email='nurse@test.com', password_hash=generate_password_hash('nurse123'), role='nurse'))
         if not User.query.filter_by(email='doctor@test.com').first():
-            db.session.add(User(name="Dr. Strange", email='doctor@test.com', password_hash=generate_password_hash('doctor123'), role='doctor', status='online', room='1'))
+            db.session.add(User(name="Lim", email='doctor@test.com', password_hash=generate_password_hash('doctor123'), role='doctor', status='online'))
         
         sim_docs = [
-            {'n':'Dr. Jackson', 'e':'jackson@hospital.com', 'p':'jackson123', 'r':'3'},
-            {'n':'Dr. Taylor', 'e':'taylor@hospital.com', 'p':'taylor123', 'r':'8'},
-            {'n':'Dr. Aida', 'e':'aida@hospital.com', 'p':'aida123', 'r':'9'},
-            {'n':'Dr. Aiman', 'e':'aiman@hospital.com', 'p':'aiman123', 'r':'5'},
-            {'n':'Dr. Jayden', 'e':'jayden@hospital.com', 'p':'jayden123', 'r':'10'}
+            {'n':'Jackson', 'e':'jackson@hospital.com', 'p':'jackson123', 'r':'3'},
+            {'n':'Taylor', 'e':'taylor@hospital.com', 'p':'taylor123', 'r':'8'},
+            {'n':'Aida', 'e':'aida@hospital.com', 'p':'aida123', 'r':'9'},
+            {'n':'Aiman', 'e':'aiman@hospital.com', 'p':'aiman123', 'r':'5'},
+            {'n':'Jayden', 'e':'jayden@hospital.com', 'p':'jayden123', 'r':'10'}
         ]
         for d in sim_docs:
             if not User.query.filter_by(email=d['e']).first():
