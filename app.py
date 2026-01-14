@@ -26,7 +26,7 @@ if not os.path.exists(INSTANCE_FOLDER):
 db_path = os.path.join(INSTANCE_FOLDER, "medical_scribe.db")
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + db_path
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.permanent_session_lifetime = timedelta(minutes=60)
+app.permanent_session_lifetime = timedelta(minutes=120)
 app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024
 
 db = SQLAlchemy(app)
@@ -512,13 +512,13 @@ if __name__ == '__main__':
         
         sim_docs = [
             {'n':'Jackson', 'e':'jackson@hospital.com', 'p':'jackson123', 'r':'3'},
-            {'n':'Taylor', 'e':'taylor@hospital.com', 'p':'taylor123', 'r':'8'},
-            {'n':'Aida', 'e':'aida@hospital.com', 'p':'aida123', 'r':'9'},
-            {'n':'Aiman', 'e':'aiman@hospital.com', 'p':'aiman123', 'r':'5'},
+            {'n':'Taylor', 'e':'taylor@hospital.com', 'p':'taylor123', 'r':'5'},
+            {'n':'Aida', 'e':'aida@hospital.com', 'p':'aida123', 'r':'8'},
+            {'n':'Aiman', 'e':'aiman@hospital.com', 'p':'aiman123', 'r':'9'},
             {'n':'Jayden', 'e':'jayden@hospital.com', 'p':'jayden123', 'r':'10'}
         ]
         for d in sim_docs:
             if not User.query.filter_by(email=d['e']).first():
-                db.session.add(User(name=d['n'], email=d['e'], password_hash=generate_password_hash(d['p']), role='doctor', status='online', room=d['r']))
+                db.session.add(User(name=d['n'], email=d['e'], password_hash=generate_password_hash(d['p']), role='doctor', status='Online', room=d['r']))
         db.session.commit()
     app.run(host='0.0.0.0', port=5000, debug=False)
