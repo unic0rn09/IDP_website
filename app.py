@@ -181,7 +181,7 @@ def nurse_dashboard():
     if request.method == "POST":
         action = request.form.get("action")
 
-        # === UPDATED ALGORITHM: QUEUEING ALLOWED ===
+     
         def find_available_room():
             # 1. Find all rooms with an ONLINE doctor
             online_docs = User.query.filter_by(role='doctor', status='online').all()
@@ -193,18 +193,27 @@ def nurse_dashboard():
             if not valid_rooms:
                 return None
 
-            # 3. Load Balancing: Pick the room with the fewest waiting patients
-            best_room = None
-            min_queue = 9999
-
+            # 3. Calculate "Load" for each room
+            # Load = Patients Waiting + Patient currently in Consultation
+            room_loads = {}
             for r_num in valid_rooms:
-                queue_count = Visit.query.filter_by(room=r_num, status='waiting').count()
-                if queue_count < min_queue:
-                    min_queue = queue_count
-                    best_room = r_num
-            
-            return best_room
+                load_count = Visit.query.filter(
+                    Visit.room == r_num,
+                    Visit.status.in_(['waiting', 'in_consultation'])
+                ).count()
+                room_loads[r_num] = load_count
 
+            # 4. Find the minimum load value (e.g., 0 is best)
+            min_load = min(room_loads.values())
+
+            # 5. Get list of all rooms that have this minimum load
+            # This handles the "Prioritize" part (picking from the best available)
+            candidates = [r for r, load in room_loads.items() if load == min_load]
+
+            # 6. Randomly pick one from the best candidates
+            # This handles the "Randomly" part
+            return random.choice(candidates)
+        
         if action == "register_new":
             name = request.form["name"]
             ic = request.form["ic"]
@@ -221,11 +230,19 @@ def nurse_dashboard():
                 assigned_room = find_available_room()
                 visit_status = "waiting" if assigned_room else "queued"
 
+                assigned_doc_id = None
+                if assigned_room:
+                    # Find the doctor who is currently online in this specific room
+                    doc_in_room = User.query.filter_by(room=assigned_room, role='doctor', status='online').first()
+                    if doc_in_room:
+                        assigned_doc_id = doc_in_room.id
+
                 new_visit = Visit(
                     patient_id=new_patient.id,
                     status=visit_status,
                     symptoms=symptom_text,
-                    room=assigned_room
+                    room=assigned_room,
+                    doctor_id=assigned_doc_id
                 )
                 db.session.add(new_visit)
                 db.session.commit()
@@ -249,11 +266,18 @@ def nurse_dashboard():
             assigned_room = find_available_room()
             visit_status = "waiting" if assigned_room else "queued"
 
+            assigned_doc_id = None
+            if assigned_room:
+                doc_in_room = User.query.filter_by(room=assigned_room, role='doctor', status='online').first()
+                if doc_in_room:
+                    assigned_doc_id = doc_in_room.id
+
             new_visit = Visit(
                 patient_id=patient_id,
                 status=visit_status,
                 symptoms=symptom_text,
-                room=assigned_room
+                room=assigned_room,
+                doctor_id=assigned_doc_id
             )
             db.session.add(new_visit)
             db.session.commit()
@@ -519,6 +543,6 @@ if __name__ == '__main__':
         ]
         for d in sim_docs:
             if not User.query.filter_by(email=d['e']).first():
-                db.session.add(User(name=d['n'], email=d['e'], password_hash=generate_password_hash(d['p']), role='doctor', status='Online', room=d['r']))
+                db.session.add(User(name=d['n'], email=d['e'], password_hash=generate_password_hash(d['p']), role='doctor', status='online', room=d['r']))
         db.session.commit()
     app.run(host='0.0.0.0', port=5000, debug=False)
